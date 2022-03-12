@@ -17,6 +17,6 @@ int main(int argc, char *argv[])
 	hash_256(message, digest, bytesRead);
 	hex_to_char_buffer(digest, output);
 	write(1, output, SHA256_MESSAGE_BLOCK_SIZE);
-	write(STDOUT_FILENO, "\n", 1);
+	write(1, "\n", 1);
 	return 0;
 }
