@@ -131,7 +131,6 @@ static void padd_message(sha256_message_t *sha256_message)
 		memcpy(block_message, sha256_message->message + (SHA256_MESSAGE_BLOCK_SIZE * last_block), block_bytes_to_padd * sizeof(uint8_t));
 		block_message[block_bytes_to_padd] = 0x80;
 
-
 		block_message[56] = sha256_message->bits_length >> 56;
 		block_message[57] = sha256_message->bits_length >> 48;
 		block_message[58] = sha256_message->bits_length >> 40;
@@ -146,7 +145,6 @@ static void padd_message(sha256_message_t *sha256_message)
 		sha256_message->last_block = last_block + 1;
 	}
 }
-
 
 //   1. Prepare the message schedule W:
 //      For t = 0 to 15
@@ -168,9 +166,7 @@ static void prepare_W(uint32_t *W, uint8_t *block_message)
 
 		W[t] = SSIG1(W[t - 2]) + W[t - 7] + SSIG0(W[t - 15]) + W[t - 16];
 	}
-
 }
-
 
 void process_hash(SHA256_t_ctx *sha256_ctx, sha256_message_t *sha256_message)
 {
@@ -211,11 +207,30 @@ void process_hash(SHA256_t_ctx *sha256_ctx, sha256_message_t *sha256_message)
 		sha256_ctx->H[5] += f;
 		sha256_ctx->H[6] += g;
 		sha256_ctx->H[7] += h;
-
 	}
 }
 
-char *hash_256(uint8_t *message, uint32_t digest[SHA256_MESSAGE_BLOCK_SIZE / 8], uint64_t message_length)
+void from_32_to_8(uint32_t *in, uint8_t *out, uint64_t byte_length)
+{
+
+	for (size_t i = 0; i < byte_length / 4; i++)
+	{
+		out[(i * 4)] = (uint8_t)((in[i] >> 24) & 0xFF);
+		out[(i * 4) + 1] = (uint8_t)((in[i] >> 16) & 0xFF);
+		out[(i * 4) + 2] = (uint8_t)((in[i] >> 8) & 0xFF);
+		out[(i * 4) + 3] = (uint8_t)(in[i] & 0xFF);
+	}
+}
+
+void hex_to_char_buffer(uint8_t *in, uint8_t *out)
+{
+	for (size_t i = 0; i < SHA256_MESSAGE_BLOCK_SIZE / 2; i++)
+	{
+		sprintf(out + (i * 2), "%02x", in[i]);
+	}
+}
+
+char *hash_256(uint8_t *message, uint8_t digest[SHA256_MESSAGE_BLOCK_SIZE / 2], uint64_t message_length)
 {
 	sha256_message_t sha256_message;
 	SHA256_t_ctx context;
@@ -223,9 +238,7 @@ char *hash_256(uint8_t *message, uint32_t digest[SHA256_MESSAGE_BLOCK_SIZE / 8],
 	start_context_sha256(&context);
 	padd_message(&sha256_message);
 	process_hash(&context, &sha256_message);
-
-	digest = context.H; 
-	
+	from_32_to_8(context.H, digest, SHA256_MESSAGE_BLOCK_SIZE / 2);
 }
 
 #endif
