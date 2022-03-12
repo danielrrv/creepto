@@ -23,11 +23,7 @@ enum
 	SHA256_MESSAGE_ERROR_TOO_LONG = 0x1
 };
 
-static uint32_t masks[8] = {
-	/* 0 0b00000000 */ 0x00, /* 1 0b10000000 */ 0x80,
-	/* 2 0b11000000 */ 0xC0, /* 3 0b11100000 */ 0xE0,
-	/* 4 0b11110000 */ 0xF0, /* 5 0b11111000 */ 0xF8,
-	/* 6 0b11111100 */ 0xFC, /* 7 0b11111110 */ 0xFE};
+
 
 typedef struct sha256_message_t
 {
