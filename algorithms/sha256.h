@@ -23,8 +23,6 @@ enum
 	SHA256_MESSAGE_ERROR_TOO_LONG = 0x1
 };
 
-
-
 typedef struct sha256_message_t
 {
 	uint8_t *message;
@@ -127,14 +125,14 @@ static void padd_message(sha256_message_t *sha256_message)
 		memcpy(block_message, sha256_message->message + (SHA256_MESSAGE_BLOCK_SIZE * last_block), block_bytes_to_padd * sizeof(uint8_t));
 		block_message[block_bytes_to_padd] = 0x80;
 
-		block_message[56] = sha256_message->bits_length >> 56;
-		block_message[57] = sha256_message->bits_length >> 48;
-		block_message[58] = sha256_message->bits_length >> 40;
-		block_message[59] = sha256_message->bits_length >> 32;
-		block_message[60] = sha256_message->bits_length >> 24;
-		block_message[61] = sha256_message->bits_length >> 16;
-		block_message[62] = sha256_message->bits_length >> 8;
-		block_message[63] = sha256_message->bits_length;
+		block_message[56] = (uint8_t)((sha256_message->bits_length >> 56) & 0xFF);
+		block_message[57] = (uint8_t)((sha256_message->bits_length >> 48) & 0xFF);
+		block_message[58] = (uint8_t)((sha256_message->bits_length >> 40) & 0xFF);
+		block_message[59] = (uint8_t)((sha256_message->bits_length >> 32) & 0xFF);
+		block_message[60] = (uint8_t)((sha256_message->bits_length >> 24) & 0xFF);
+		block_message[61] = (uint8_t)((sha256_message->bits_length >> 16) & 0xFF);
+		block_message[62] = (uint8_t)((sha256_message->bits_length >> 8) & 0xFF);
+		block_message[63] = (uint8_t)(sha256_message->bits_length & 0xFF);
 		uint8_t *ptr = (uint8_t *)realloc(sha256_message->message, sizeof(uint8_t) * (sha256_message->message_length + bytes_left));
 		sha256_message->message = ptr;
 		memcpy(sha256_message->message + (SHA256_MESSAGE_BLOCK_SIZE * last_block), block_message, SHA256_MESSAGE_BLOCK_SIZE * sizeof(uint8_t));
