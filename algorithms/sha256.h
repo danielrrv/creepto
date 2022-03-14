@@ -1,8 +1,8 @@
 
 // https://datatracker.ietf.org/doc/html/rfc4634
 
-#ifndef SHA_256_H
-#define SHA_256_H
+#ifndef CREEPTO_SHA256_H
+#define CREEPTO_SHA256_H
 
 #include <stdio.h>
 #include <string.h>
