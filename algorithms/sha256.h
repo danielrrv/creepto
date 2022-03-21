@@ -224,7 +224,7 @@ void hex_to_char_buffer(uint8_t *in, uint8_t *out)
 	}
 }
 
-char *hash_256(uint8_t *message, uint8_t digest[SHA256_MESSAGE_BLOCK_SIZE / 2], uint64_t message_length)
+void hash_256(uint8_t *message, uint8_t digest[SHA256_MESSAGE_BLOCK_SIZE / 2], uint64_t message_length)
 {
 	sha256_message_t sha256_message;
 	SHA256_t_ctx context;
