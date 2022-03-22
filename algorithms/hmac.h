@@ -68,13 +68,13 @@ void sha256_hmac(uint8_t *l_key, size_t key_length, uint8_t *message, size_t mes
 	// (7) apply H to the stream generated in step (6) and output
 	//     the result
 	uint8_t H_key_opad_H_key_ipad_message[B / 2];
-	// printf("[%s]\n", key_opad_H_key_ipad_message);
+
 	hash_256(key_opad_H_key_ipad_message, H_key_opad_H_key_ipad_message, (B / 2) + B);
-	// memcpy(&digest,H_key_opad_H_key_ipad_message, 32);
+	memcpy(&digest, H_key_opad_H_key_ipad_message, B / 2);
 	free(key);
 	free(key_ipad_message);
 	free(key_opad_H_key_ipad_message);
-	// return H_key_opad_H_key_ipad_message;
+	return H_key_opad_H_key_ipad_message;
 }
 
 #endif

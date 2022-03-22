@@ -7,6 +7,7 @@ enum
 	BUFFERSIZE = 1024
 };
 
+// echo -n "hello" | ./hmac_test.o 
 int main(int argc, char *argv[])
 {
 	uint8_t message[BUFFERSIZE], output[BUFFERSIZE];
