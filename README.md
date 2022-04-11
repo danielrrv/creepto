@@ -1,2 +1,2 @@
 # creepto
-Crypto library in Scala. Personal Projects
+Crypto library in C. Personal Projects
