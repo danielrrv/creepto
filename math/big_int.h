@@ -34,10 +34,15 @@ BIG_INT *big_int_power(BIG_INT *a, BIG_INT *x);
 BIG_INT *big_int_root_square(BIG_INT *, BIG_INT *);
 
 //Primitives
+void add(uint8_t * sum, uint8_t a, uint8_t b, uint8_t * carry);
+void substract(uint8_t * needs_borrow, uint8_t * substraction, uint8_t a, uint8_t b, uint8_t * carry);
 uint8_t primitive_substraction(uint8_t, uint8_t, uint8_t);
-uint8_t apply_borrowing_if_apply(uint8_t *, uint8_t, uint8_t, uint8_t);
+uint8_t apply_borrowing_if_apply(uint8_t *, uint8_t, uint8_t, const uint8_t);
 uint8_t primitive_sum(uint8_t, uint8_t, uint8_t);
 uint8_t apply_carry_if_apply(uint8_t *, uint8_t *);
+
+
+// uint8_t valid_integer_at()
 
 // Comparisons
 
@@ -167,25 +172,20 @@ BIG_INT *big_int_sum(BIG_INT *A, BIG_INT *B)
 		#ifdef DEBUG
 			printf("DEBUG[INPUT]: A'%d(%c) + B'%d(%c) + T'%d(%c)\n", A->digits[Alen- i - 1], A->digits[Alen - i - 1], B->digits[Blen - i - 1], B->digits[Blen - i - 1], carry + '0', carry + '0');
 		#endif
-		uint8_t needs_borrow = 0;
-		int8_t sum = 0;
-		if(bit_int_greater_than_abs(A, B)==0x01){
-			if((A->sign=='+' && B->sign == '-')|| (A->sign=='-' && B->sign == '+')){
-				needs_borrow = apply_borrowing_if_apply(&sum, Alen > i ? A->digits[Alen - i - 1] - '0' : 0, Blen > i ? B->digits[Blen - i - 1]-'0': 0, carry);
-				sum += primitive_substraction(Alen > i ? A->digits[Alen - i - 1] - '0' : 0, Blen > i ? B->digits[Blen - i - 1]-'0': 0, carry);
-				carry = needs_borrow ? 1 : 0;
+		uint8_t valid_integer_A_at_i = Alen > i ? A->digits[Alen - i - 1] - '0' : 0,valid_integer_B_at_i = Blen > i ? B->digits[Blen - i - 1] - '0' : 0,
+		needs_borrow = 0,
+		sum = 0;
+		if(bit_int_greater_than_abs(A, B) == 0x01){
+			if((A->sign=='+' && B->sign == '-') || (A->sign=='-' && B->sign == '+')){
+				substract(&needs_borrow, &sum, valid_integer_A_at_i, valid_integer_B_at_i, &carry);
 			}else{
-				sum+= primitive_sum(Alen > i ? A->digits[Alen - i - 1] - '0' : 0, Blen > i ? B->digits[Blen - i - 1]-'0': 0, carry);
-				apply_carry_if_apply(&sum, &carry);
+				add(&sum, valid_integer_A_at_i, valid_integer_B_at_i, &carry );
 			}
 		}else{
 			if(B->sign=='+' && A->sign=='+'||B->sign=='-' && A->sign=='-'){
-				sum+=primitive_sum( Blen > i ? B->digits[Blen - i - 1] - '0' : 0, Alen > i ? A->digits[Alen - i - 1] - '0' : 0, carry);
-				apply_carry_if_apply(&sum, &carry);
+				add(&sum, valid_integer_B_at_i, valid_integer_A_at_i, &carry);
 			}else{
-				needs_borrow = apply_borrowing_if_apply(&sum, Blen > i ? B->digits[Blen - i - 1]-'0': 0, Alen > i ? A->digits[Alen - i - 1] - '0' : 0, carry);
-				sum += primitive_substraction(Blen > i ? B->digits[Blen - i - 1]-'0': 0, Alen > i ? A->digits[Alen - i - 1] - '0' : 0, carry);
-				carry = needs_borrow ? 1 : 0;
+				substract(&needs_borrow, &sum, valid_integer_B_at_i, valid_integer_A_at_i, &carry);
 			}
 		}
 		uint16_t index = insert_at(value, sum % 10 + '0', MAX_DIGIT_LENGHT - i - 1);
@@ -196,15 +196,15 @@ BIG_INT *big_int_sum(BIG_INT *A, BIG_INT *B)
 	}
 	value->digits = value->digits + (MAX_DIGIT_LENGHT - i - carry);
 	value->sign = A->sign;
-	printf("[%s] + [%s] = [%s]\n", A->digits, B->digits,value->digits);
+	#ifdef DEBUG
+		printf("[%s] + [%s] = [%s]\n", A->digits, B->digits,value->digits);
+	#endif
 	return value;
 }
 
 BIG_INT *big_int_substract(BIG_INT *A, BIG_INT *B)
 {
-	BIG_INT *value = base_ctor();
-
-	printf("Substracting A(%s) - B(%s)\n", A->digits, B->digits);
+	BIG_INT *value = base_ctor();	
 	uint32_t Blen = B->length, Alen = A->length;
 	uint8_t borrow = 0;
 	size_t i;
@@ -213,33 +213,25 @@ BIG_INT *big_int_substract(BIG_INT *A, BIG_INT *B)
 		#ifdef DEBUG
 			printf("DEBUG[INPUT]: A'%d(%c) - B'%d(%c) - T'%d(%c)\n", A->digits[A->length - i - 1], A->digits[A->length - i - 1], B->digits[B->length - i - 1], B->digits[B->length - i - 1], borrow + '0', borrow + '0');
 		#endif
+		uint8_t valid_integer_A_at_i = Alen > i ? A->digits[Alen - i - 1] - '0' : 0,valid_integer_B_at_i = Blen > i ? B->digits[Blen - i - 1] - '0' : 0;
 		uint8_t needs_borrow = 0;
 		int8_t substraction = 0;
 		if(bit_int_greater_than_abs(A, B) == 0x01){
 			if(A->sign=='-' && B->sign=='+'){
-				substraction+= primitive_sum(Alen > i ?A->digits[Alen - i - 1] - '0': 0,  Blen > i? B->digits[Blen - i - 1] - '0': 0, borrow);
-				apply_carry_if_apply(&substraction, &borrow);
+				add(&substraction, valid_integer_A_at_i, valid_integer_B_at_i, &borrow);
 			}else{
-				needs_borrow = apply_borrowing_if_apply(&substraction, Alen > i ?A->digits[Alen - i - 1] - '0':0, Blen > i? B->digits[Blen - i - 1] - '0': 0, borrow);
-				substraction += primitive_substraction((Alen > i ? A->digits[Alen - i - 1] - '0': 0), (Blen > i ? B->digits[Blen - i - 1] - '0' : 0), borrow);
-				borrow = needs_borrow ? 1 : 0;
+				substract(&needs_borrow, &substraction, valid_integer_A_at_i, valid_integer_B_at_i, &borrow);
 			}
 		}else{
 			if(B->sign=='-' && A->sign=='+'||B->sign=='+' && A->sign=='-'){
-				substraction+=primitive_sum( Blen > i ? B->digits[Blen - i - 1] - '0' : 0, Alen > i ? A->digits[Alen - i - 1] - '0' : 0, borrow);
-				apply_carry_if_apply(&substraction, &borrow);
+				add(&substraction, valid_integer_B_at_i, valid_integer_A_at_i, &borrow);
 			}else{
-				needs_borrow = apply_borrowing_if_apply(&substraction, Blen > i ? B->digits[Blen - i - 1] - '0' : 0, Alen > i ? A->digits[Alen - i - 1] - '0' : 0, borrow);
-				substraction += primitive_substraction((Blen > i ? B->digits[Blen - i - 1] -'0' : 0), (Alen > i? A->digits[Alen - i - 1] - '0': 0), borrow);
-				borrow = needs_borrow ? 1 : 0;
+				substract(&needs_borrow, &substraction, valid_integer_B_at_i, valid_integer_A_at_i, &borrow);
 			}
-			
 		}
 		uint16_t index = insert_at(value, (substraction % BASE10) + '0', MAX_DIGIT_LENGHT - i - 1);
-		
-		printf("%d = A(%d) - B(%d) - borrow(%d)\n",substraction,(A->digits[Alen - i - 1]-'0'),(B->digits[Blen - i - 1] - '0'), borrow);
-		// borrow = needs_borrow ? 1 : 0;
 		#ifdef DEBUG
+			printf("%d = A(%d) - B(%d) - borrow(%d)\n",substraction,(A->digits[Alen - i - 1]-'0'),(B->digits[Blen - i - 1] - '0'), borrow);
 			printf("DEBUG[SUB][INSERTED]: value:%d(%c)\tborrow:%c\tindex:%d\n", substraction % BASE10 + '0', substraction % BASE10 + '0', borrow + '0', index);
 		#endif
 
@@ -248,9 +240,20 @@ BIG_INT *big_int_substract(BIG_INT *A, BIG_INT *B)
 		
 	value->digits = value->digits + (MAX_DIGIT_LENGHT - i);
 	value->sign = A->sign;
-	printf("[%s] - [%s]=[%s]\n", A->digits, B->digits,value->digits);
-	printf("-------------\n");
+	#ifdef DEBUG
+		printf("[%s] - [%s]=[%s]\n", A->digits, B->digits,value->digits);
+	#endif
 	return value;
+}
+
+void add(uint8_t * sum, uint8_t a, uint8_t b, uint8_t * carry){
+	*sum+= primitive_sum(a, b, *carry);
+	apply_carry_if_apply(sum, carry);
+}
+void substract(uint8_t * needs_borrow, uint8_t * substraction, uint8_t a, uint8_t b, uint8_t * borrow){
+	*needs_borrow = apply_borrowing_if_apply(substraction, a, b, *borrow);
+	*substraction += primitive_substraction(a, b, *borrow);
+	*borrow = *needs_borrow ? 1 : 0;
 }
 uint8_t primitive_sum(uint8_t a, uint8_t b, uint8_t carry){
 	return a + b + carry;
@@ -259,9 +262,8 @@ uint8_t primitive_sum(uint8_t a, uint8_t b, uint8_t carry){
 uint8_t primitive_substraction(uint8_t a, uint8_t b, uint8_t initial_borrow){
 	return a - b  - initial_borrow;
 }
-uint8_t apply_borrowing_if_apply(uint8_t * substraction, uint8_t a, uint8_t b, uint8_t initial_borrow){
+uint8_t apply_borrowing_if_apply(uint8_t * substraction, uint8_t a, uint8_t b, const uint8_t initial_borrow){
 	uint8_t needs_borrowing = (a - initial_borrow < b || a == 0) ;
-	printf("Nojoda:A:%d, borrow:%d, b:%d\n", a, initial_borrow, b);
 	*substraction += needs_borrowing ? 10 : 0;
 	return needs_borrowing;
 }	
