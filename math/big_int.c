@@ -41,6 +41,13 @@ void test_should_sum(){
 	assert(strcmp(big_int_sum( ctor_char("-9984"),  ctor_char("255622"))->digits, ctor_char("-245638")->digits)==0);
 	assert(strcmp(big_int_sum( ctor_char("-998422"),  ctor_char("-2556"))->digits, ctor_char("-1000978")->digits)==0);
 	assert(strcmp(big_int_sum( ctor_char("-9984"),  ctor_char("-255622"))->digits, ctor_char("-265606")->digits)==0);
+	assert(strcmp(big_int_sum( ctor_char("9984"),  ctor_char("0"))->digits, ctor_char("9984")->digits)==0);
+	assert(strcmp(big_int_sum( ctor_char("0"),  ctor_char("2556"))->digits, ctor_char("2556")->digits)==0);
+	assert(strcmp(big_int_sum( ctor_char("0"),  ctor_char("1000150"))->digits, ctor_char("1000150")->digits)==0);
+	assert(strcmp(big_int_sum( ctor_char("191502086816040508058769501485429142358480752283393809010901812903019017421636531501658722091387723965207369835613458680419152"),  ctor_char("32429895406264297993771527300008845774187146823839192918821268800000000000000000000000000000000000000000000000000000000000000"))->digits, ctor_char("223931982222304806052541028785437988132667899107233001929723081703019017421636531501658722091387723965207369835613458680419152")->digits)==0);
+
+	
+
 	printf("==> test_should_sum[passed]\n");
 }
 void test_should_get_sign(){
@@ -53,7 +60,7 @@ void test_should_substract(){
 	assert(strcmp(big_int_substract( ctor_char("96643"),  ctor_char("75754"))->digits,ctor_char("20889")->digits)==0);
 	assert(strcmp(big_int_substract( ctor_char("99900"),  ctor_char("6006"))->digits, ctor_char("93894")->digits)==0);
 	assert(strcmp(big_int_substract( ctor_char("9984"),  ctor_char("2556222"))->digits, ctor_char("-2546238")->digits)==0);
-	// assert(strcmp(big_int_substract( ctor_char("0"),  ctor_char("0"))->digits, ctor_char("0")->digits)==0);
+	assert(strcmp(big_int_substract( ctor_char("0"),  ctor_char("0"))->digits, ctor_char("0")->digits)==0);
 	assert(strcmp(big_int_substract( ctor_char("-9984"),  ctor_char("2556"))->digits, ctor_char("-12540")->digits)==0);
 	assert(strcmp(big_int_substract( ctor_char("-998444"),  ctor_char("2556"))->digits, ctor_char("-1001000")->digits)==0);
 	assert(strcmp(big_int_substract( ctor_char("-9984"),  ctor_char("255622"))->digits, ctor_char("-265606")->digits)==0);
@@ -66,6 +73,17 @@ void test_should_substract(){
 	assert(strcmp(big_int_substract( ctor_char("-9984"),  ctor_char("2556"))->digits, ctor_char("-12540")->digits)==0);
 	printf("==> test_should_substract[passed]\n");
 }
+void test_should_multiply(){
+	assert(strcmp(big_int_multiply( ctor_char("2456"),ctor_char("20003"))->digits, ctor_char("49127368")->digits)==0);
+	assert(strcmp(big_int_multiply( ctor_char("2456"),ctor_char("0"))->digits, ctor_char("0")->digits)==0);
+	assert(strcmp(big_int_multiply( ctor_char("0"),ctor_char("2456"))->digits, ctor_char("0")->digits)==0);
+	assert(strcmp(big_int_multiply( ctor_char("3324298954062642979937715273000088457741871468238391929188212688"), ctor_char("157624825433230490762246168127797657567916321816555529634539929"))->digits, ctor_char("523992042321994806059141329145437988132698862137233062019813141703019017421636531501658722091387723965207369835613458680419152")->digits)==0);
+	//523992042321994806059141329145437988132698862137233062019813141703019017421636531501658722091387723965207369835613458680419152
+	//223931982222304806052541028785437988132667899107233001929723081703019017421636531501658722091387723965207369835613458680419152
+	//Node 523992042321994806059141329145437988132698862137233062019813141703019017421636531501658722091387723965207369835613458680419152
+	// 223931982222304806052541028785437988132667899107233001929723081703019017421636531501658722091387723965207369835613458680419152
+	printf("==> test_should_multiply[passed]\n");
+}
 
 int main(){
 
@@ -73,5 +91,6 @@ int main(){
 	test_should_ctor_char();
 	test_should_sum();
 	test_should_substract();
+	test_should_multiply();
 	return 0;
 }
