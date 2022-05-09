@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define IS_DIGIT(c) ((c >= '0' && '9' >= c) ? 1 : 0)
+
 typedef struct BIG_INT
 {
 	uint8_t *digits;
@@ -17,10 +19,10 @@ const uint16_t MAX_DIGIT_LENGHT = 4096;
 const uint8_t MAX_INT_DIGIT = 22;
 
 // Constructors
-BIG_INT *base_ct();
-BIG_INT *ct_char(char *);
-BIG_INT *ct_int(int);
-BIG_INT *ct_long(long);
+BIG_INT *base_ctor();
+BIG_INT *ctor_char(char *);
+BIG_INT *ctor_int(int);
+BIG_INT *ctor_long(long);
 
 // Operations
 BIG_INT *big_int_sum(BIG_INT *, BIG_INT *);
@@ -31,16 +33,27 @@ BIG_INT *big_int_modulo(BIG_INT *n, BIG_INT *m);
 BIG_INT *big_int_power(BIG_INT *a, BIG_INT *x);
 BIG_INT *big_int_root_square(BIG_INT *, BIG_INT *);
 
+//Primitives
+uint8_t primitive_substraction(uint8_t, uint8_t, uint8_t);
+uint8_t apply_borrowing_if_apply(uint8_t *, uint8_t, uint8_t, uint8_t);
+uint8_t primitive_sum(uint8_t, uint8_t, uint8_t);
+uint8_t apply_carry_if_apply(uint8_t *, uint8_t *);
+
 // Comparisons
 
-uint8_t big_int_greater_than(BIG_INT *a, BIG_INT *b);
+uint8_t big_int_greater_than(const BIG_INT * a, const BIG_INT *b);
+uint8_t bit_int_greater_than_abs(BIG_INT  * A, BIG_INT *B);
 uint8_t big_int_equal_to(BIG_INT *a, BIG_INT *b);
 
-// Utils
-uint8_t big_int_is_digit(uint8_t);
-int insert_at(BIG_INT *, uint8_t, uint16_t);
 
-BIG_INT *base_ct()
+// Utils
+uint16_t insert_at(BIG_INT *, uint8_t, uint16_t);
+uint8_t invert_sign(uint8_t sign){
+	return sign=='+' ? '-':'+';
+}
+
+
+BIG_INT *base_ctor()
 {
 	BIG_INT *value = (BIG_INT *)malloc(sizeof(BIG_INT));
 	value->length = 0;
@@ -50,9 +63,9 @@ BIG_INT *base_ct()
 	return value;
 }
 
-BIG_INT *ct_char(char *r)
+BIG_INT *ctor_char(char *r)
 {
-	BIG_INT *value = base_ct();
+	BIG_INT *value = base_ctor();
 
 	char *rr = r;
 	if (rr == NULL)
@@ -60,22 +73,25 @@ BIG_INT *ct_char(char *r)
 		return NULL;
 	}
 	int i = 0;
+	
 	while (*rr != '\0')
 	{
+		
 		if (i > MAX_DIGIT_LENGHT)
 		{
 			return value;
 		}
-		if (*rr == '\0' || big_int_is_digit(*rr) == 0)
-		{
-			if (*rr == '\t' || *rr == ' ')
-				continue;
-			if ((*rr = '+' || *rr == '-') && i == 0)
-			{
-				value->sign = *rr;
-				continue;
-			}
+		if(*rr=='\0'){
+			
 			return value;
+		}
+		if (IS_DIGIT(*rr) == 0)
+		{	
+			if ((*rr == '+' || *rr == '-') && i == 0){
+				value->sign = *rr;
+			}
+			rr++;
+			continue;
 		}
 		memcpy(value->digits + i, (uint8_t *)rr, sizeof(uint8_t));
 		value->length++;
@@ -85,9 +101,9 @@ BIG_INT *ct_char(char *r)
 	return value;
 }
 
-BIG_INT *ct_int(int number)
+BIG_INT *ctor_int(int number)
 {
-	BIG_INT *value = base_ct();
+	BIG_INT *value = base_ctor();
 	if (0 > number)
 	{
 		value->sign = '-';
@@ -113,9 +129,9 @@ BIG_INT *ct_int(int number)
 	return value;
 }
 
-BIG_INT *ct_long(long number)
+BIG_INT *ctor_long(long number)
 {
-	BIG_INT *value = base_ct();
+	BIG_INT *value = base_ctor();
 
 	uint8_t tmp[MAX_INT_DIGIT];
 	memset(tmp, 0, MAX_INT_DIGIT);
@@ -139,104 +155,126 @@ BIG_INT *ct_long(long number)
 
 BIG_INT *big_int_sum(BIG_INT *A, BIG_INT *B)
 {
-
-	if (A == NULL || B == NULL)
-		return NULL;
-	BIG_INT *value = base_ct();
-	if (big_int_greater_than(A, B) == 1)
+	// if((A->sign =='-' && B->sign == '+')|| (A->sign =='+' && B->sign == '-')){
+	// 	return big_int_substract(A, B);
+	// }
+	BIG_INT * value = base_ctor();
+	uint32_t Blen = B->length, Alen = A->length, max_length = Blen > Alen ? Blen : Alen;
+	uint8_t carry = 0;
+	size_t i;
+	for (i = 0; i < Blen || i < Alen || carry > 0; i++)
 	{
-		uint32_t Blen = B->length;
-		uint8_t taken = 0;
-		for (size_t i = 0; i < Blen; i++)
-		{
-			#ifdef DEBUG
-				printf("DEBUG[INPUT]: A'%d(%c) + B'%d(%c) + T'%d(%c)\n", A->digits[A->length - i - 1], A->digits[A->length - i - 1], B->digits[Blen - i - 1], B->digits[Blen - i - 1], taken + '0', taken + '0');
-			#endif
-			uint8_t sum = (B->digits[Blen - i - 1] + A->digits[A->length - i - 1]) - (2 * '0') + taken;
-			int mod10 = sum % 10;
-			if (sum >= 10)
-			{
-				taken = 1;
-
-				int index = insert_at(value, mod10 + '0', MAX_DIGIT_LENGHT - i - 1);
-				#ifdef DEBUG
-					printf("DEBUG[INSERTED]: %d(%c)\t taken: %c\tindex:%d\n", mod10 + '0', mod10 + '0', taken + '0', index);
-				#endif
-				continue;
+		#ifdef DEBUG
+			printf("DEBUG[INPUT]: A'%d(%c) + B'%d(%c) + T'%d(%c)\n", A->digits[Alen- i - 1], A->digits[Alen - i - 1], B->digits[Blen - i - 1], B->digits[Blen - i - 1], carry + '0', carry + '0');
+		#endif
+		uint8_t needs_borrow = 0;
+		int8_t sum = 0;
+		if(bit_int_greater_than_abs(A, B)==0x01){
+			if((A->sign=='+' && B->sign == '-')|| (A->sign=='-' && B->sign == '+')){
+				needs_borrow = apply_borrowing_if_apply(&sum, Alen > i ? A->digits[Alen - i - 1] - '0' : 0, Blen > i ? B->digits[Blen - i - 1]-'0': 0, carry);
+				sum += primitive_substraction(Alen > i ? A->digits[Alen - i - 1] - '0' : 0, Blen > i ? B->digits[Blen - i - 1]-'0': 0, carry);
+				carry = needs_borrow ? 1 : 0;
+			}else{
+				sum+= primitive_sum(Alen > i ? A->digits[Alen - i - 1] - '0' : 0, Blen > i ? B->digits[Blen - i - 1]-'0': 0, carry);
+				apply_carry_if_apply(&sum, &carry);
 			}
-			else
-			{
-				taken = 0;
-				int index = insert_at(value, mod10 + '0', MAX_DIGIT_LENGHT - i - 1);
-				#ifdef DEBUG
-					printf("DEBUG[INSERTED]: %d, %c\t taken:%c\tindex:%d\n", mod10 + '0', mod10 + '0', taken + '0', index);
-				#endif
+		}else{
+			if(B->sign=='+' && A->sign=='+'||B->sign=='-' && A->sign=='-'){
+				sum+=primitive_sum( Blen > i ? B->digits[Blen - i - 1] - '0' : 0, Alen > i ? A->digits[Alen - i - 1] - '0' : 0, carry);
+				apply_carry_if_apply(&sum, &carry);
+			}else{
+				needs_borrow = apply_borrowing_if_apply(&sum, Blen > i ? B->digits[Blen - i - 1]-'0': 0, Alen > i ? A->digits[Alen - i - 1] - '0' : 0, carry);
+				sum += primitive_substraction(Blen > i ? B->digits[Blen - i - 1]-'0': 0, Alen > i ? A->digits[Alen - i - 1] - '0' : 0, carry);
+				carry = needs_borrow ? 1 : 0;
 			}
 		}
-		for (size_t i = 0; i < A->length - Blen; i++)
-		{
-			int index = insert_at(value, A->digits[A->length - Blen - i - 1], MAX_DIGIT_LENGHT - Blen - i - 1);
-			#ifdef DEBUG
-				printf("DEBUG[INSERT]:%d(%c)\tindex: %d\n", A->digits[A->length - Blen - i - 1], A->digits[A->length - Blen - i - 1], index);
-			#endif
-		}
-		value->digits = value->digits + (MAX_DIGIT_LENGHT - (A->length));
-		value->sign = A->sign;
-		return value;
+		uint16_t index = insert_at(value, sum % 10 + '0', MAX_DIGIT_LENGHT - i - 1);
+		 
+		#ifdef DEBUG
+			printf("DEBUG[INSERTED1]: %d(%c)\t carry: %c\tindex:%d\n", (sum %10) + '0', (sum %10) + '0', carry + '0', index);
+		#endif
 	}
-	else
-	{
-		uint32_t Alen = A->length;
-		uint8_t taken = 0;
-		for (size_t i = 0; i < Alen; i++)
-		{
-			#ifdef DEBUG
-				printf("DEBUG[INPUT]: B'%d(%c) + A'%d(%c) + T'%d(%c)\n", A->digits[Alen - i - 1], A->digits[Alen - i - 1], B->digits[B->length - i - 1], B->digits[B->length - i - 1], taken + '0', taken + '0');
-			#endif
-			uint8_t sum = (A->digits[Alen - i - 1] + B->digits[B->length - i - 1]) - (2 * '0') + taken;
-			int mod10 = sum % 10;
-			if (sum >= 10)
-			{
-				taken = 1;
-
-				int index = insert_at(value, mod10 + '0', MAX_DIGIT_LENGHT - i - 1);
-				#ifdef DEBUG
-					printf("DEBUG[INSERTED]: %d(%c)\t taken: %c\tindex:%d\n", mod10 + '0', mod10 + '0', taken + '0', index);
-				#endif
-				continue;
-			}
-			else
-			{
-				taken = 0;
-				int index = insert_at(value, mod10 + '0', MAX_DIGIT_LENGHT - i - 1);
-				#ifdef DEBUG
-					printf("DEBUG[INSERTED]: %d, %c\t taken:%c\tindex:%d\n", mod10 + '0', mod10 + '0', taken + '0', index);
-				#endif
-			}
-		}
-		for (size_t i = 0; i < B->length - Alen; i++)
-		{
-			int index = insert_at(value, A->digits[A->length - Alen - i - 1], MAX_DIGIT_LENGHT - Alen - i - 1);
-			#ifdef DEBUG
-				printf("DEBUG[INSERT]:%d(%c)\tindex: %d\n", B->digits[B->length - Alen - i - 1], B->digits[B->length - Alen - i - 1], index);
-			#endif
-		}
-		value->digits = value->digits + (MAX_DIGIT_LENGHT - (B->length));
-		value->sign = B->sign;
-		return value;
-	}
+	value->digits = value->digits + (MAX_DIGIT_LENGHT - i - carry);
+	value->sign = A->sign;
+	printf("[%s] + [%s] = [%s]\n", A->digits, B->digits,value->digits);
+	return value;
 }
 
 BIG_INT *big_int_substract(BIG_INT *A, BIG_INT *B)
 {
-	//    4564355
-	// 43445798766
-	//------------
-	//           9
+	BIG_INT *value = base_ctor();
+
+	printf("Substracting A(%s) - B(%s)\n", A->digits, B->digits);
+	uint32_t Blen = B->length, Alen = A->length;
+	uint8_t borrow = 0;
+	size_t i;
+	for (i = 0; i < Alen || i < Blen|| borrow > 0; i++)
+	{
+		#ifdef DEBUG
+			printf("DEBUG[INPUT]: A'%d(%c) - B'%d(%c) - T'%d(%c)\n", A->digits[A->length - i - 1], A->digits[A->length - i - 1], B->digits[B->length - i - 1], B->digits[B->length - i - 1], borrow + '0', borrow + '0');
+		#endif
+		uint8_t needs_borrow = 0;
+		int8_t substraction = 0;
+		if(bit_int_greater_than_abs(A, B) == 0x01){
+			if(A->sign=='-' && B->sign=='+'){
+				substraction+= primitive_sum(Alen > i ?A->digits[Alen - i - 1] - '0': 0,  Blen > i? B->digits[Blen - i - 1] - '0': 0, borrow);
+				apply_carry_if_apply(&substraction, &borrow);
+			}else{
+				needs_borrow = apply_borrowing_if_apply(&substraction, Alen > i ?A->digits[Alen - i - 1] - '0':0, Blen > i? B->digits[Blen - i - 1] - '0': 0, borrow);
+				substraction += primitive_substraction((Alen > i ? A->digits[Alen - i - 1] - '0': 0), (Blen > i ? B->digits[Blen - i - 1] - '0' : 0), borrow);
+				borrow = needs_borrow ? 1 : 0;
+			}
+		}else{
+			if(B->sign=='-' && A->sign=='+'||B->sign=='+' && A->sign=='-'){
+				substraction+=primitive_sum( Blen > i ? B->digits[Blen - i - 1] - '0' : 0, Alen > i ? A->digits[Alen - i - 1] - '0' : 0, borrow);
+				apply_carry_if_apply(&substraction, &borrow);
+			}else{
+				needs_borrow = apply_borrowing_if_apply(&substraction, Blen > i ? B->digits[Blen - i - 1] - '0' : 0, Alen > i ? A->digits[Alen - i - 1] - '0' : 0, borrow);
+				substraction += primitive_substraction((Blen > i ? B->digits[Blen - i - 1] -'0' : 0), (Alen > i? A->digits[Alen - i - 1] - '0': 0), borrow);
+				borrow = needs_borrow ? 1 : 0;
+			}
+			
+		}
+		uint16_t index = insert_at(value, (substraction % BASE10) + '0', MAX_DIGIT_LENGHT - i - 1);
+		
+		printf("%d = A(%d) - B(%d) - borrow(%d)\n",substraction,(A->digits[Alen - i - 1]-'0'),(B->digits[Blen - i - 1] - '0'), borrow);
+		// borrow = needs_borrow ? 1 : 0;
+		#ifdef DEBUG
+			printf("DEBUG[SUB][INSERTED]: value:%d(%c)\tborrow:%c\tindex:%d\n", substraction % BASE10 + '0', substraction % BASE10 + '0', borrow + '0', index);
+		#endif
+
+		
+	}
+		
+	value->digits = value->digits + (MAX_DIGIT_LENGHT - i);
+	value->sign = A->sign;
+	printf("[%s] - [%s]=[%s]\n", A->digits, B->digits,value->digits);
+	printf("-------------\n");
+	return value;
+}
+uint8_t primitive_sum(uint8_t a, uint8_t b, uint8_t carry){
+	return a + b + carry;
 }
 
-uint8_t big_int_greater_than(BIG_INT *A, BIG_INT *B)
+uint8_t primitive_substraction(uint8_t a, uint8_t b, uint8_t initial_borrow){
+	return a - b  - initial_borrow;
+}
+uint8_t apply_borrowing_if_apply(uint8_t * substraction, uint8_t a, uint8_t b, uint8_t initial_borrow){
+	uint8_t needs_borrowing = (a - initial_borrow < b || a == 0) ;
+	printf("Nojoda:A:%d, borrow:%d, b:%d\n", a, initial_borrow, b);
+	*substraction += needs_borrowing ? 10 : 0;
+	return needs_borrowing;
+}	
+uint8_t apply_carry_if_apply(uint8_t * sum, uint8_t * carry){
+		*carry = *sum >= 10 ? 1 : 0;
+}
+
+
+
+
+uint8_t big_int_greater_than(const BIG_INT * A, const BIG_INT * B)
 {
+	printf("Asign(%c), Bsign(%c)\n", A->sign, B->sign);
 	if (A->sign == '+' && B->sign == '-')
 	{
 		return 1;
@@ -249,7 +287,9 @@ uint8_t big_int_greater_than(BIG_INT *A, BIG_INT *B)
 	{
 		int j = 0;
 		while (j < A->length)
-		{	if((A->digits[j] - '0' == B->digits[j] - '0')){
+		{
+			if ((A->digits[j] - '0' == B->digits[j] - '0'))
+			{
 				j++;
 				continue;
 			}
@@ -265,17 +305,23 @@ uint8_t big_int_greater_than(BIG_INT *A, BIG_INT *B)
 		}
 	}
 	else
-	{
+	{	
 		return 0;
 	}
 }
 
-uint8_t big_int_is_digit(uint8_t digit)
-{
-	return (digit >= '0' && '9' >= digit) ? 1 : 0;
+uint8_t bit_int_greater_than_abs(BIG_INT  * A, BIG_INT *B){
+	const uint8_t tmp_signA = A->sign;
+	const uint8_t tmp_signB = B->sign;
+	A->sign = '+';
+	B->sign = '+';
+	uint8_t is_A_greater_than_B = big_int_greater_than(A, B);
+	A->sign = tmp_signA;
+	B->sign = tmp_signB;
+	return is_A_greater_than_B;
 }
 
-int insert_at(BIG_INT *big_int, uint8_t value, uint16_t index)
+uint16_t insert_at(BIG_INT *big_int, uint8_t value, uint16_t index)
 {
 	big_int->digits[index] = value;
 	big_int->length++;
