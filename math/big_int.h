@@ -176,17 +176,11 @@ BIG_INT *big_int_sum(BIG_INT *A, BIG_INT *B)
 		needs_borrow = 0,
 		sum = 0;
 		if(bit_int_greater_than_abs(A, B) == 0x01){
-			if((A->sign=='+' && B->sign == '-') || (A->sign=='-' && B->sign == '+')){
-				substract(&needs_borrow, &sum, valid_integer_A_at_i, valid_integer_B_at_i, &carry);
-			}else{
-				add(&sum, valid_integer_A_at_i, valid_integer_B_at_i, &carry );
-			}
+			if((A->sign=='+' && B->sign == '-') || (A->sign=='-' && B->sign == '+'))substract(&needs_borrow, &sum, valid_integer_A_at_i, valid_integer_B_at_i, &carry);
+			else add(&sum, valid_integer_A_at_i, valid_integer_B_at_i, &carry );
 		}else{
-			if(B->sign=='+' && A->sign=='+'||B->sign=='-' && A->sign=='-'){
-				add(&sum, valid_integer_B_at_i, valid_integer_A_at_i, &carry);
-			}else{
-				substract(&needs_borrow, &sum, valid_integer_B_at_i, valid_integer_A_at_i, &carry);
-			}
+			if(B->sign=='+' && A->sign=='+'||B->sign=='-' && A->sign=='-')add(&sum, valid_integer_B_at_i, valid_integer_A_at_i, &carry);
+			else substract(&needs_borrow, &sum, valid_integer_B_at_i, valid_integer_A_at_i, &carry);
 		}
 		uint16_t index = insert_at(value, sum % 10 + '0', MAX_DIGIT_LENGHT - i - 1);
 		 
@@ -217,17 +211,12 @@ BIG_INT *big_int_substract(BIG_INT *A, BIG_INT *B)
 		uint8_t needs_borrow = 0;
 		int8_t substraction = 0;
 		if(bit_int_greater_than_abs(A, B) == 0x01){
-			if(A->sign=='-' && B->sign=='+'){
-				add(&substraction, valid_integer_A_at_i, valid_integer_B_at_i, &borrow);
-			}else{
-				substract(&needs_borrow, &substraction, valid_integer_A_at_i, valid_integer_B_at_i, &borrow);
-			}
+			if(A->sign=='-' && B->sign=='+') add(&substraction, valid_integer_A_at_i, valid_integer_B_at_i, &borrow);
+			else substract(&needs_borrow, &substraction, valid_integer_A_at_i, valid_integer_B_at_i, &borrow);
 		}else{
-			if(B->sign=='-' && A->sign=='+'||B->sign=='+' && A->sign=='-'){
-				add(&substraction, valid_integer_B_at_i, valid_integer_A_at_i, &borrow);
-			}else{
-				substract(&needs_borrow, &substraction, valid_integer_B_at_i, valid_integer_A_at_i, &borrow);
-			}
+			if(B->sign=='-' && A->sign=='+'||B->sign=='+' && A->sign=='-') add(&substraction, valid_integer_B_at_i, valid_integer_A_at_i, &borrow);
+			else substract(&needs_borrow, &substraction, valid_integer_B_at_i, valid_integer_A_at_i, &borrow);
+			
 		}
 		uint16_t index = insert_at(value, (substraction % BASE10) + '0', MAX_DIGIT_LENGHT - i - 1);
 		#ifdef DEBUG
@@ -276,15 +265,8 @@ uint8_t apply_carry_if_apply(uint8_t * sum, uint8_t * carry){
 
 uint8_t big_int_greater_than(const BIG_INT * A, const BIG_INT * B)
 {
-	printf("Asign(%c), Bsign(%c)\n", A->sign, B->sign);
-	if (A->sign == '+' && B->sign == '-')
-	{
-		return 1;
-	}
-	else if ((A->length > B->length) && A->sign == '+')
-	{
-		return 1;
-	}
+	if (A->sign == '+' && B->sign == '-')return 1;
+	else if ((A->length > B->length) && A->sign == '+')return 1;
 	else if (A->length == B->length)
 	{
 		int j = 0;
@@ -295,21 +277,12 @@ uint8_t big_int_greater_than(const BIG_INT * A, const BIG_INT * B)
 				j++;
 				continue;
 			}
-			else if ((A->digits[j] - '0' > B->digits[j] - '0') && (A->sign == '+'))
-			{
-				return 1;
-			}
-			else
-			{
-				return 0;
-			}
+			else if ((A->digits[j] - '0' > B->digits[j] - '0') && (A->sign == '+'))return 1;		
+			else return 0;
 			j++;
 		}
 	}
-	else
-	{	
-		return 0;
-	}
+	else return 0;
 }
 
 uint8_t bit_int_greater_than_abs(BIG_INT  * A, BIG_INT *B){
