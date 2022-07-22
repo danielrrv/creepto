@@ -8,12 +8,23 @@
 
 #define IS_DIGIT(c) ((c >= '0' && '9' >= c) ? 1 : 0)
 
+typedef enum error_type {
+	DIVISION_BY_ZERO = 1,
+	DIVISOR_GREATER_THAN_DIVIDEND
+} error_type_e;
+
 typedef struct BIG_INT
 {
 	uint8_t *digits;
 	uint32_t length;
 	uint8_t sign;
 } BIG_INT;
+
+typedef struct division_result{
+	BIG_INT * quotient;
+	BIG_INT * remaining;
+	error_type_e error;
+}division_result_t;
 
 const uint8_t ZERO = '0';
 const uint8_t NINE = '9';
@@ -55,7 +66,7 @@ BIG_INT *big_int_sum(BIG_INT *, BIG_INT *);
  */
 BIG_INT *big_int_substract(BIG_INT *, BIG_INT *);
 BIG_INT *big_int_multiply(BIG_INT *, BIG_INT *);
-BIG_INT *big_int_divide(BIG_INT *, BIG_INT *);
+division_result_t *big_int_divide(BIG_INT *, BIG_INT *);
 BIG_INT *big_int_modulo(BIG_INT *n, BIG_INT *m);
 BIG_INT *big_int_power(BIG_INT *a, BIG_INT *x);
 BIG_INT *big_int_root_square(BIG_INT *, BIG_INT *);
@@ -74,7 +85,7 @@ uint8_t apply_carry_if_apply(uint8_t *, uint8_t *);
 // Comparisons
 
 uint8_t big_int_greater_than(const BIG_INT * a, const BIG_INT *b);
-uint8_t bit_int_greater_than_abs(BIG_INT  * A, BIG_INT *B);
+uint8_t big_int_greater_than_abs(BIG_INT  * A, BIG_INT *B);
 uint8_t big_int_equal_to(BIG_INT *a, BIG_INT *b);
 
 
@@ -83,9 +94,10 @@ uint16_t insert_at(BIG_INT *, uint8_t, uint16_t);
 uint8_t invert_sign(uint8_t sign){
 	return sign=='+' ? '-':'+';
 }
+void clean_zero_in_front(BIG_INT *);
 
 /**
- * @brief Simple BIG_INT constructor.  ->digits undefined(allocate before accessing). 
+ * @brief Simple BIG_INT constructor.  ->digits allocated memset(0) 
  * 
  * @return BIG_INT* 
  */
@@ -159,20 +171,33 @@ BIG_INT *ctor_int(int number)
 	uint8_t tmp[MAX_INT_DIGIT];
 	memset(tmp, 0, MAX_INT_DIGIT);
 	int i = 0;
-	while ((number / 10) != 0)
-	{
-		int mod = number % 10;
-		number -= mod;
-		if ((number % 10) == 0)
+	if(number > 10){
+		while ((number / 10) != 0)
 		{
-			number /= 10;
+			int mod = number % 10;
+			number -= mod;
+			if ((number % 10) == 0)
+			{
+				number /= 10;
+			}
+			value->digits[MAX_DIGIT_LENGHT - i - 1] = mod + '0';
+			i++;
 		}
-		value->digits[MAX_DIGIT_LENGHT - i - 1] = mod + '0';
-		i++;
+		insert_at(value, (number % 10) + '0', MAX_DIGIT_LENGHT - i - 1);
+		value->length = i + 1;
+		
+	}else{
+		value->digits[MAX_DIGIT_LENGHT - 1] = number % 10 + '0';
+		value->length = 1;
+		// i++;
 	}
-	insert_at(value, (number % 10) + '0', MAX_DIGIT_LENGHT - i - 1);
 	value->digits = value->digits + (MAX_DIGIT_LENGHT - i - 1);
-	value->length = i;
+	
+	
+	#ifdef DEBUG
+		printf("value:%s\ti:%d\n",  value->digits, i);
+	#endif
+	
 	return value;
 }
 /**
@@ -212,7 +237,7 @@ BIG_INT *big_int_sum(BIG_INT *A, BIG_INT *B)
 	uint32_t Blen = B->length, Alen = A->length, max_length = Blen > Alen ? Blen : Alen;
 	uint8_t carry = 0;
 	size_t i;
-	uint8_t is_A_greater_than_B_abs = bit_int_greater_than_abs(A, B) == 0x01; 
+	uint8_t is_A_greater_than_B_abs = big_int_greater_than_abs(A, B) == 0x01; 
 	for (i = 0; i < Blen || i < Alen || carry > 0; i++)
 	{
 		#ifdef DEBUG
@@ -268,11 +293,14 @@ BIG_INT *big_int_sum(BIG_INT *A, BIG_INT *B)
  */
 BIG_INT *big_int_substract(BIG_INT *A, BIG_INT *B)
 {	
+	#ifdef DEBUG
+		printf("Substracting A:[%s]\tB:[%s]\n", A->digits, B->digits);
+	#endif
 	BIG_INT *value = base_ctor();	
 	uint32_t Blen = B->length, Alen = A->length;
 	uint8_t borrow = 0;
 	size_t i;
-	uint8_t is_A_greater_than_B_abs = bit_int_greater_than_abs(A, B) == 0x01; 
+	uint8_t is_A_greater_than_B_abs = big_int_greater_than_abs(A, B) == 0x01; 
 	for (i = 0; i < Alen || i < Blen|| borrow > 0; i++)
 	{
 		#ifdef DEBUG
@@ -313,6 +341,7 @@ BIG_INT *big_int_substract(BIG_INT *A, BIG_INT *B)
 	value->digits = value->digits + (MAX_DIGIT_LENGHT - i);
 	// Implementation to decide the sign of the final BIG INT.
 	value->sign = is_A_greater_than_B_abs ? A->sign : B->sign;
+	clean_zero_in_front(value);
 	#ifdef DEBUG
 		printf("[%s] - [%s]=[%s]\n", A->digits, B->digits,value->digits);
 	#endif
@@ -335,7 +364,7 @@ BIG_INT *big_int_multiply(BIG_INT * A, BIG_INT * B){
 	uint32_t Alen = A->length;
 	uint32_t Blen = B->length;
 	//Case #1. B is greater than A by absolute value.
-	if(bit_int_greater_than_abs(A, B)==0x00){
+	if(big_int_greater_than_abs(A, B)==0x00){
 		//Variable declare to coun the padding zeros needed to sum up the each iteration.
 		uint32_t padding = 0;
 		//Going through O(N2) iteration on A to muliply each element of A with B ones.
@@ -401,7 +430,7 @@ BIG_INT *big_int_multiply(BIG_INT * A, BIG_INT * B){
 		#endif
 		return value;
 	} else{
-		printf("POR AQUI\n");
+		printf("Alen:%d\tBleb%d\n", Alen, Blen);
 		//Variable declare to coun the padding zeros needed to sum up the each iteration.
 		uint32_t padding = 0;
 		for (size_t i = 0; i < B->length; i++){
@@ -422,7 +451,7 @@ BIG_INT *big_int_multiply(BIG_INT * A, BIG_INT * B){
 			//Primary factor multiplies every value of the B(Second big integer).
 			if(primary_factor!=0){
 				for (; j < A->length || carry > 0 ; j++ )
-				{
+				{	
 					#ifdef DEBUG
 						printf("A(%d)*B(%d)\n",(Alen > j ? A->digits[A->length - j - 1] - '0':0),  Blen > i ? B->digits[B->length - i - 1] - '0': 0);
 					#endif
@@ -458,11 +487,115 @@ BIG_INT *big_int_multiply(BIG_INT * A, BIG_INT * B){
 			padding++;
 		}
 		#ifdef DEBUG
-			printf("[%s] * [%s] = [%s]:len%d\n", A->digits, B->digits,value->digits, value->length);
+			printf("[%s] * [%s] = [%s]:lenElse%d\n", A->digits, B->digits,value->digits, value->length);
 		#endif
 		return value;
 	}
 }
+
+division_result_t *big_int_divide(BIG_INT * A, BIG_INT *B){
+	//Initialize a BIG_INT instance;
+	division_result_t * division_result = (division_result_t *)malloc(sizeof(division_result));
+	division_result->quotient = ctor_char("0");
+	division_result->remaining = ctor_char("0");
+	//[Exception # 1] Division by zero.
+	if (B->digits[0]=='0' && B->length == 1)
+	{
+		printf("Exception: Divinding by zero.\n");
+		division_result->quotient = ctor_char("0");
+		division_result->remaining = ctor_char("0");
+		division_result->error = DIVISION_BY_ZERO;
+		#ifdef DEBUG
+			printf("[%s] / [%s] = [%s]R%sE%d\n", A->digits, B->digits, division_result->quotient->digits, division_result->remaining->digits, division_result->error);
+		#endif
+		return division_result;
+		//44444444
+		//00033333
+	}else if(big_int_greater_than_abs(A, B)==0x00){
+		/*B is greater than A */
+		division_result->error = DIVISOR_GREATER_THAN_DIVIDEND;
+		#ifdef DEBUG
+			printf("[%s] / [%s] = [%s]R%sE%d\n", A->digits, B->digits,division_result->quotient->digits, division_result->remaining->digits,division_result->error);
+		#endif
+		return division_result;
+	}else{
+		if(A->length == B->length){
+			//TODO: Create the case for it.
+			return division_result;
+		}
+		if(A->length < B->length){
+			return division_result;
+		}
+
+		BIG_INT * better_numerator = base_ctor();
+		BIG_INT * possible_divisor = base_ctor();
+
+		memcpy(better_numerator->digits, A->digits, B->length + 1);
+		memcpy(possible_divisor->digits, B->digits, B->length);
+		better_numerator->length =  B->length + 1;
+		possible_divisor->length = B->length;
+		printf("better_numerator:[%s]\n", better_numerator->digits);	
+		printf("possible_divisor:%s\n", possible_divisor->digits);
+		
+	
+
+
+		while (big_int_greater_than_abs(better_numerator, B)==0x01)
+		{
+			int i = 0;
+			BIG_INT * tmp;
+			while (i++,tmp = big_int_multiply(possible_divisor, ctor_int(i)), big_int_greater_than_abs(better_numerator, tmp) == 0x01)
+			{
+				printf("i:%d\n", i);
+				//  = big_int_multiply(possible_divisor, ctor_int(i));
+				// possible_divisor = tmp; 
+				printf("guessing:%s\n",tmp->digits);
+			
+				printf("[%s] > [%s]\n", better_numerator->digits, tmp->digits);
+				// possible_divisor = tmp;
+				// break;
+			}
+			printf("Possible divisor is:%d\n", i - 1);
+			BIG_INT * remaining = big_int_substract(better_numerator, big_int_multiply(ctor_int(i - 1) , B));
+			// BIG_INT * D = big_int_sum(big_int_multiply(B,ctor_int( i -1)), remaining);
+			printf("divisor:%d\tremaining:%s\n",i-1,remaining->digits);
+			
+			// assert(strcmp(D->digits, A->digits)==0);
+			break;
+		}
+		
+		// B * n < guess;
+		//A -> guess
+		
+		
+		
+
+		// printf("->[%s]\n", big_int_multiply(possible_divisor, ctor_int(29))->digits);
+	}
+	#ifdef DEBUG
+		printf("[%s] / [%s] = [%s]R%sE%d\n", A->digits, B->digits,division_result->quotient->digits, division_result->remaining->digits, division_result->error);
+	#endif
+	return division_result;
+}
+
+// BIG_INT *big_int_modulo(BIG_INT *n, BIG_INT *m){
+// 	for (size_t i = 0; i < count; i++)
+// 	{
+// 		/* code */
+// 	}
+	
+// }
+
+
+//  98679885012903702658339633053923094380397163235416227395597628126096173812919253641129
+//                                                 |98679885012903702658339633053923094380
+// void big_integer_to_hex(BIG_INT * I){
+// 	for (size_t i = 0; i < I->length; i++)
+// 	{
+// 		for
+// 	}
+	
+// }
 
 /**
  * @brief adds up two number and validate and update the carry value.
@@ -583,7 +716,7 @@ uint8_t big_int_greater_than(const BIG_INT * A, const BIG_INT * B)
  * @param B 
  * @return uint8_t 
  */
-uint8_t bit_int_greater_than_abs(BIG_INT  * A, BIG_INT *B){
+uint8_t big_int_greater_than_abs(BIG_INT  * A, BIG_INT *B){
 	const uint8_t tmp_signA = A->sign;
 	const uint8_t tmp_signB = B->sign;
 	A->sign = '+';
@@ -608,3 +741,15 @@ uint16_t insert_at(BIG_INT *big_int, uint8_t value, uint16_t index)
 	return index;
 }
 #endif //  CREEPTO_BIG_INT_H
+
+/**
+ * @brief  clear any zero at front of the array of digits.
+ * 
+ * @param big_int 
+ */
+void clean_zero_in_front(BIG_INT * big_int){
+	while (big_int->digits[0]=='0' && big_int->length > 1 ){
+		big_int->digits++;
+		big_int->length--;
+	}	
+}
