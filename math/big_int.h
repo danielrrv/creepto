@@ -147,11 +147,13 @@ BIG_INT *ctor_char(char *r)
 			rr++;
 			continue;
 		}
+		//rr is lvalue. must be inserted in the array directly.
 		memcpy(value->digits + i, (uint8_t *)rr, sizeof(uint8_t));
 		value->length++;
 		i++;
 		rr++;
 	}
+	// printf("char BIGINT [%s]\n", value->digits);
 	return value;
 }
 /**
@@ -171,7 +173,7 @@ BIG_INT *ctor_int(int number)
 	uint8_t tmp[MAX_INT_DIGIT];
 	memset(tmp, 0, MAX_INT_DIGIT);
 	int i = 0;
-	if(number > 10){
+	if(number >= 10){
 		while ((number / 10) != 0)
 		{
 			int mod = number % 10;
@@ -194,12 +196,39 @@ BIG_INT *ctor_int(int number)
 	value->digits = value->digits + (MAX_DIGIT_LENGHT - i - 1);
 	
 	
-	#ifdef DEBUG
-		printf("value:%s\ti:%d\n",  value->digits, i);
+	#ifdef DEBUG2
+		printf("in:%d out:%s\ti:%d\n",number,  value->digits, i);
 	#endif
 	
 	return value;
 }
+
+void toString(int number, uint8_t * str){
+
+	if(str == NULL)return;
+
+	int i = 0;
+	if(number > 10){
+		while ((number / 10) != 0)
+		{
+			int mod = number % 10;
+			number -= mod;
+			if ((number % 10) == 0)
+			{
+				number /= 10;
+			}
+			str[MAX_DIGIT_LENGHT - i - 1] = mod + '0';
+			i++;
+		}
+		str[MAX_DIGIT_LENGHT - i - 1]= (number % 10) + '0' ;
+		
+	}else{
+		str[MAX_DIGIT_LENGHT - 1] = number % 10 + '0';
+	}
+	memmove(str, str + (MAX_DIGIT_LENGHT - i - 1), i + 1);
+}
+
+
 /**
  * @brief Constructs a BIG_INT from a long.
  * 
@@ -241,10 +270,11 @@ BIG_INT *big_int_sum(BIG_INT *A, BIG_INT *B)
 	for (i = 0; i < Blen || i < Alen || carry > 0; i++)
 	{
 		#ifdef DEBUG
-			printf("DEBUG[INPUT]: A'%d(%c) + B'%d(%c) + T'%d(%c)\n", A->digits[Alen- i - 1], A->digits[Alen - i - 1], B->digits[Blen - i - 1], B->digits[Blen - i - 1], carry + '0', carry + '0');
+			printf("DEBUG[INPUT]: A'%d(%c) + B'%d(%c) + T'%d(%c)\n", 
+				A->digits[Alen- i - 1], A->digits[Alen - i - 1], B->digits[Blen - i - 1], B->digits[Blen - i - 1], carry + '0', carry + '0');
 		#endif
 		// DRY the digit at the determited position.
-		uint8_t valid_integer_A_at_i = Alen > i ? A->digits[Alen - i - 1] - '0' : 0,valid_integer_B_at_i = Blen > i ? B->digits[Blen - i - 1] - '0' : 0,
+		uint8_t valid_integer_A_at_i = Alen > i ? A->digits[Alen - i - 1] - '0' : 0, valid_integer_B_at_i = Blen > i ? B->digits[Blen - i - 1] - '0' : 0,
 		needs_borrow = 0,
 		sum = 0;
 		//Case #1. A is greater than B(absolute value).
@@ -304,9 +334,12 @@ BIG_INT *big_int_substract(BIG_INT *A, BIG_INT *B)
 	for (i = 0; i < Alen || i < Blen|| borrow > 0; i++)
 	{
 		#ifdef DEBUG
-			printf("DEBUG[INPUT]: A'%d(%c) - B'%d(%c) - T'%d(%c)\n", A->digits[A->length - i - 1], A->digits[A->length - i - 1], B->digits[B->length - i - 1], B->digits[B->length - i - 1], borrow + '0', borrow + '0');
+			printf("DEBUG[INPUT]: A'%d(%c) - B'%d(%c) - T'%d(%c)\n", 
+				A->digits[A->length - i - 1], A->digits[A->length - i - 1], 
+				B->digits[B->length - i - 1], B->digits[B->length - i - 1], borrow + '0', borrow + '0');
 		#endif
-		uint8_t valid_integer_A_at_i = Alen > i ? A->digits[Alen - i - 1] - '0' : 0,valid_integer_B_at_i = Blen > i ? B->digits[Blen - i - 1] - '0' : 0;
+		uint8_t valid_integer_A_at_i = Alen > i ? A->digits[Alen - i - 1] - '0' : 0, 
+				valid_integer_B_at_i = Blen > i ? B->digits[Blen - i - 1] - '0' : 0;
 		uint8_t needs_borrow = 0;
 		int8_t substraction = 0;
 		//Case #1. A is greater than B(absolute).
@@ -333,8 +366,9 @@ BIG_INT *big_int_substract(BIG_INT *A, BIG_INT *B)
 		}
 		uint16_t index = insert_at(value, (substraction % BASE10) + '0', MAX_DIGIT_LENGHT - i - 1);
 		#ifdef DEBUG
-			printf("%d = A(%d) - B(%d) - borrow(%d)\n",substraction,(A->digits[Alen - i - 1]-'0'),(B->digits[Blen - i - 1] - '0'), borrow);
-			printf("DEBUG[SUB][INSERTED]: value:%d(%c)\tborrow:%c\tindex:%d\n", substraction % BASE10 + '0', substraction % BASE10 + '0', borrow + '0', index);
+			printf("%d = A(%d) - B(%d) - borrow(%d)\n",substraction, (A->digits[Alen - i - 1]-'0'), (B->digits[Blen - i - 1] - '0'), borrow);
+			printf("DEBUG[SUB][INSERTED]: value:%d(%c)\tborrow:%c\tindex:%d\n", 
+				substraction % BASE10 + '0', substraction % BASE10 + '0', borrow + '0', index);
 		#endif		
 	}
 	// Implementation to advance the pointer because was filled from back to front.
@@ -391,7 +425,8 @@ BIG_INT *big_int_multiply(BIG_INT * A, BIG_INT * B){
 				for (;j < B->length || carry > 0 ; j++ )
 				{
 					#ifdef DEBUG
-						printf("A(%d)*B(%d)\n",(Blen > j ? B->digits[B->length - j - 1] - '0':0),  Alen > i ? A->digits[A->length - i - 1] - '0':0);
+						printf("A(%d)*B(%d)\n",
+							(Blen > j ? B->digits[B->length - j - 1] - '0':0),  Alen > i ? A->digits[A->length - i - 1] - '0':0);
 					#endif
 					//Implementation to multuiply digit of A with digit of B plus any carried value from previous multiplication.
 					uint8_t multiplication = (Blen > j ? B->digits[B->length - j - 1] - '0':0) * primary_factor + carry;
@@ -425,12 +460,14 @@ BIG_INT *big_int_multiply(BIG_INT * A, BIG_INT * B){
 			//Implementation to add a new zero to next temporal big_integer.
 			padding++;
 		}
-		#ifdef DEBUG
+		#ifdef DEBUG2
 			printf("[%s] * [%s] = [%s]:len%d\n", A->digits, B->digits,value->digits, value->length);
 		#endif
 		return value;
 	} else{
-		printf("Alen:%d\tBleb%d\n", Alen, Blen);
+		#ifdef DEBUG
+			printf("Alen:%d\tBlen:%d\n", Alen, Blen);
+		#endif
 		//Variable declare to coun the padding zeros needed to sum up the each iteration.
 		uint32_t padding = 0;
 		for (size_t i = 0; i < B->length; i++){
@@ -453,7 +490,8 @@ BIG_INT *big_int_multiply(BIG_INT * A, BIG_INT * B){
 				for (; j < A->length || carry > 0 ; j++ )
 				{	
 					#ifdef DEBUG
-						printf("A(%d)*B(%d)\n",(Alen > j ? A->digits[A->length - j - 1] - '0':0),  Blen > i ? B->digits[B->length - i - 1] - '0': 0);
+						printf("A(%d)*B(%d)\n",
+							(Alen > j ? A->digits[A->length - j - 1] - '0':0),  Blen > i ? B->digits[B->length - i - 1] - '0': 0);
 					#endif
 					//Implementation to multuiply digit of A with digit of B plus any carried value from previous multiplication.
 					uint8_t multiplication = (Alen > j ? A->digits[A->length - j - 1] - '0':0) * primary_factor + carry;
@@ -486,8 +524,8 @@ BIG_INT *big_int_multiply(BIG_INT * A, BIG_INT * B){
 			value->length = tmp->length;
 			padding++;
 		}
-		#ifdef DEBUG
-			printf("[%s] * [%s] = [%s]:lenElse%d\n", A->digits, B->digits,value->digits, value->length);
+		#ifdef DEBUG2
+			printf("[%s] * [%s] = [%s]:lenElse: %d\n", A->digits, B->digits,value->digits, value->length);
 		#endif
 		return value;
 	}
@@ -506,7 +544,8 @@ division_result_t *big_int_divide(BIG_INT * A, BIG_INT *B){
 		division_result->remaining = ctor_char("0");
 		division_result->error = DIVISION_BY_ZERO;
 		#ifdef DEBUG
-			printf("[%s] / [%s] = [%s]R%sE%d\n", A->digits, B->digits, division_result->quotient->digits, division_result->remaining->digits, division_result->error);
+			printf("[%s] / [%s] = [%s]R%sE%d\n", 
+				A->digits, B->digits, division_result->quotient->digits, division_result->remaining->digits,division_result->error);
 		#endif
 		return division_result;
 		//44444444
@@ -515,7 +554,8 @@ division_result_t *big_int_divide(BIG_INT * A, BIG_INT *B){
 		/*B is greater than A */
 		division_result->error = DIVISOR_GREATER_THAN_DIVIDEND;
 		#ifdef DEBUG
-			printf("[%s] / [%s] = [%s]R%sE%d\n", A->digits, B->digits,division_result->quotient->digits, division_result->remaining->digits,division_result->error);
+			printf("[%s] / [%s] = [%s]R%sE%d\n", 
+				A->digits, B->digits, division_result->quotient->digits, division_result->remaining->digits, division_result->error);
 		#endif
 		return division_result;
 	}else{
@@ -529,51 +569,160 @@ division_result_t *big_int_divide(BIG_INT * A, BIG_INT *B){
 
 		BIG_INT * better_numerator = base_ctor();
 		BIG_INT * possible_divisor = base_ctor();
-
+		division_result->quotient  = base_ctor();
+		//Better numerator will be the chunk of A that is enough greater than B initially.
 		memcpy(better_numerator->digits, A->digits, B->length + 1);
+		//Possible divisor will be B.
 		memcpy(possible_divisor->digits, B->digits, B->length);
+		//The length of better numerator is a digit greater than B.That is debatable. It can be enourmous the difference.
 		better_numerator->length =  B->length + 1;
+		//Accordingly length of the B.
 		possible_divisor->length = B->length;
+		//The number of zeros are used to generate the closer number to A. A= B + qo
+
+		/**
+		 * @brief 
+		 * better_numerator >=  quotient(at  m iter) * possible_divisor(which is B)
+		 * where quotient(at m iter) is the factor that multipled by better divisor is the closer to possible_divisor(which is B).
+		 * There's a remaning:
+		 *  remaining(at m iter) = better_numerator-  quotient(at  m iter) * possible_divisor(which is B) * trailing_zeros.
+		 * Turns out that the numerator is larger than divisor, so we just get a part of it. To consider the rest of the number we bring them as 
+		 * zeros so that when we substract we substract A - B*quotient with the same number length. See algorithm.
+		 * The remaing serves for
+		 */
+		uint8_t trailing_zeros[MAX_DIGIT_LENGHT];
+		memset(trailing_zeros, '\0', MAX_DIGIT_LENGHT);
+		memset(trailing_zeros + 1, '0', A->length - better_numerator->length - 1);
+		BIG_INT * remaining = base_ctor();
+		memcpy(remaining->digits, A->digits, A->length);
+		remaining->length = A->length;
+
 		printf("better_numerator:[%s]\n", better_numerator->digits);	
+		printf("Alenght:[%d]\n", A->length);
 		printf("possible_divisor:%s\n", possible_divisor->digits);
+		printf("initial remaining:%s\n", remaining->digits);
+		 // = 
+
 		
-	
 
-
-		while (big_int_greater_than_abs(better_numerator, B)==0x01)
+		int m = 0;
+		while (big_int_greater_than_abs(remaining, B)==0x01)
 		{
+			trailing_zeros[0] = '1';
 			int i = 0;
-			BIG_INT * tmp;
-			while (i++,tmp = big_int_multiply(possible_divisor, ctor_int(i)), big_int_greater_than_abs(better_numerator, tmp) == 0x01)
+			BIG_INT * tmp = big_int_multiply(possible_divisor, ctor_int(i));
+			uint8_t condition = big_int_greater_than_abs(better_numerator, tmp) == 0x01;
+			while (condition)
 			{
-				printf("i:%d\n", i);
-				//  = big_int_multiply(possible_divisor, ctor_int(i));
-				// possible_divisor = tmp; 
-				printf("guessing:%s\n",tmp->digits);
+				// printf("i:%d\n", i);
+				// // possible_divisor = tmp; 
+				// printf("guessing: %s\n",tmp->digits);
 			
-				printf("[%s] > [%s]\n", better_numerator->digits, tmp->digits);
+				// printf("[%s] > [%s]\n", better_numerator->digits, tmp->digits);
 				// possible_divisor = tmp;
 				// break;
+				
+				i++;
+				tmp = big_int_multiply(possible_divisor, ctor_int(i));
+				condition = big_int_greater_than_abs(better_numerator, tmp) == 0x01;
 			}
-			printf("Possible divisor is:%d\n", i - 1);
-			BIG_INT * remaining = big_int_substract(better_numerator, big_int_multiply(ctor_int(i - 1) , B));
-			// BIG_INT * D = big_int_sum(big_int_multiply(B,ctor_int( i -1)), remaining);
-			printf("divisor:%d\tremaining:%s\n",i-1,remaining->digits);
+			i--;
+			memset(better_numerator->digits, '\0', MAX_DIGIT_LENGHT);
 			
-			// assert(strcmp(D->digits, A->digits)==0);
-			break;
+
+
+			uint8_t quotient[MAX_DIGIT_LENGHT];
+			memset(quotient, 0, MAX_DIGIT_LENGHT * sizeof(uint8_t));
+			toString(i, quotient);
+			memcpy(division_result->quotient->digits + division_result->quotient->length, quotient, strlen(quotient));
+			division_result->quotient->length += strlen(quotient);
+			
+			//A lenght aqui debe ser el nuevo numerador.
+
+			
+			BIG_INT * zeros = ctor_char(trailing_zeros);
+			BIG_INT * closer_product =  big_int_multiply(division_result->quotient, B);
+			BIG_INT * closer_product_plus_zeros = big_int_multiply(closer_product, zeros); 
+			printf("\n\nremaining[%s]\nquotient[%s]\nzeros[%s]\nnzeros[%d]\ncloser_product[%s]\ncloser_product_plus_zeros[%s]\n\n", 
+				remaining->digits,
+				division_result->quotient->digits, 
+				zeros->digits, 
+				zeros->length,
+				closer_product->digits, 
+				closer_product_plus_zeros->digits);
+			
+			BIG_INT * substraction_local = big_int_substract(A, closer_product_plus_zeros);//BUG HERE
+			
+
+
+			printf("substraction_local:%s\n", substraction_local->digits);
+			printf("substraction_local_length:%d\n", substraction_local->length);
+			memcpy(remaining->digits, substraction_local->digits, substraction_local->length);  
+			memcpy(better_numerator->digits, substraction_local->digits, B->length + 1);
+			better_numerator->length = B->length + 1;
+			printf("better: %s\n", better_numerator->digits);
+
+			printf("substraction_local->length:%d-%d\n", substraction_local->length, B->length);
+			memset(trailing_zeros, '\0', MAX_DIGIT_LENGHT);
+			memset(trailing_zeros + 1, '0', (A->length - closer_product_plus_zeros->length));
+			printf("size_trailing_zeros:[%d]\n", (A->length - closer_product_plus_zeros->length));
+			printf("trailing_zeros:[%s]\n", trailing_zeros);
+
+
+			printf("consciente:[%s]\n", division_result->quotient->digits);
+			free(tmp);
+			free(zeros);
+			free(closer_product);
+			free( closer_product_plus_zeros);
+			free(substraction_local);
+
+			m++;
+			if(m==3){ break;}
+			
+			// break;
 		}
-		
+		printf("consciente:[%s]\n", division_result->quotient->digits);
+// 	> 181832321 / 22
+// 8265105.5
+// > 181 / 22
+// 8.227272727272727
+// > 8 * 22
+// 176
+// > 181832321 / 22
+// 8265105.5
+// > 181 / 22
+// 8.227272727272727
+// > 8000000 * 22
+// 176000000
+// > 181832321 - 176000000
+// 5832321
+// > 583 / 22
+// 26.5
+// > 826 * 22
+// 18172
+// >  181832321 - 181720000
+// 112321
+// > 112/22
+// 5.090909090909091
+// > 8265 * 22
+// 181830
+// > 181832321-181830000
+// 2321
+// > 8000000 * 22
+// 176000000
 		// B * n < guess;
 		//A -> guess
+		// 99339939309090909939309036434567534789534566322555599965352468877
+		// 29352696412742635211157
 		
-		
+		// 993399393090909099393090
 		
 
 		// printf("->[%s]\n", big_int_multiply(possible_divisor, ctor_int(29))->digits);
 	}
 	#ifdef DEBUG
-		printf("[%s] / [%s] = [%s]R%sE%d\n", A->digits, B->digits,division_result->quotient->digits, division_result->remaining->digits, division_result->error);
+		printf("[%s] / [%s] = [%s]R%sE%d\n", 
+			A->digits, B->digits,division_result->quotient->digits, division_result->remaining->digits, division_result->error);
 	#endif
 	return division_result;
 }

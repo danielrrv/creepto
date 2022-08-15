@@ -8,18 +8,26 @@ void test_should_ctor_int(){
 	uint8_t integer_as_text[] = {'6', '1', '6', '5', '1'};
 	assert(strcmp(bg_int->digits,  integer_as_text)==0);
 	assert(bg_int->sign=='+');
-	BIG_INT * bg_int_2 = ctor_int(2);
-	uint8_t second[] = {'2'};
-	assert(strncmp(bg_int_2->digits,  second, 1) == 0);
+	BIG_INT * bg_int_2 = ctor_int(10);
+	uint8_t second[] = {'1', '0'};
+	assert(strncmp(bg_int_2->digits,  second, 2) == 0);
+
+	BIG_INT * bg_int10 = ctor_int(100);
+	uint8_t integer10_as_text[] = {'1', '0', '0'};
+	assert(strncmp(bg_int10->digits,  integer10_as_text, 2)==0);
 	printf("==> test_should_ctor_int[passed]\n");
 }
 
 void test_should_ctor_char(){
 	BIG_INT * bg_int = ctor_char("-61651");
+	BIG_INT * bg_int10 = ctor_char("100");
 	uint8_t integer_as_text[] = {'6', '1', '6', '5', '1'};
+	uint8_t integer10_as_text[] = {'1', '0', '0'};
 	assert(strcmp(bg_int->digits,  integer_as_text)==0);
 	assert(bg_int->sign=='-');
+	assert(strcmp(bg_int10->digits,  integer10_as_text)==0);
 	printf("==> test_should_ctor_char[passed]\n");
+	
 }
 void test_should_sum(){
 	assert(strcmp(big_int_sum( ctor_char("20003"),  ctor_char("2456"))->digits, ctor_char("22459")->digits)==0);
@@ -86,6 +94,8 @@ void test_should_multiply(){
 	
 	assert(strcmp(big_int_multiply( ctor_char("1"), ctor_char("33242989540626429799377"))->digits, ctor_char("33242989540626429799377")->digits)==0);
 	assert(strcmp(big_int_multiply( ctor_char("33242989540626429799377"), ctor_char("1"))->digits, ctor_char("33242989540626429799377")->digits)==0);
+	assert(strcmp(big_int_multiply( ctor_char("33242989540626429799377"), ctor_char("10"))->digits, ctor_char("332429895406264297993770")->digits)==0);
+	assert(strcmp(big_int_multiply( ctor_char("33242989540626429799377"), ctor_char("100"))->digits, ctor_char("3324298954062642979937700")->digits)==0);
 	printf("==> test_should_multiply[passed]\n");
 }
 
@@ -98,11 +108,11 @@ printf("==> test_should_divide[passed]\n");//993399393090909099393090
 
 int main(){
 
-	test_should_ctor_int();
-	test_should_ctor_char();
-	test_should_sum();
-	test_should_substract();
-	test_should_multiply();
-	// test_should_divide();
+	// test_should_ctor_int();
+	// test_should_ctor_char();
+	// test_should_sum();
+	// test_should_substract();
+	// test_should_multiply();
+	test_should_divide();
 	return 0;
 }
