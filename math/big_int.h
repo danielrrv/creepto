@@ -8,6 +8,24 @@
 
 #define IS_DIGIT(c) ((c >= '0' && '9' >= c) ? 1 : 0)
 
+// #define ARRAY_LEN(array, length_name) \
+//  	uint16_t length_name ; \
+// 	while( *array != '\0' )##length_name++;
+
+#define BIG_INT_IS_ZERO(big_int) (big_int->length == 1 && big_int->digits[0]=='0')
+#define BIG_INT_IS_ONE(big_int) (big_int->length == 1 && big_int->digits[0]=='1')
+
+#define INITIALIZE_BIG_INT_TO(big_int, d) \
+	memset(big_int->digits, '\0', sizeof(uint8_t) * MAX_DIGIT_LENGHT); \
+	big_int->digits[0] = d; \
+	big_int->length = 1;
+
+#define BIG_INT_COPY_FROM_TO(a, b) \
+	memcpy(b->digits, a->digits, a->length);\
+	b->length = a->length; \
+	b->sign = a->sign;
+
+#define TO_BOOL(c) (c==0x01)
 typedef enum error_type {
 	DIVISION_BY_ZERO = 1,
 	DIVISOR_GREATER_THAN_DIVIDEND
@@ -46,6 +64,7 @@ BIG_INT *base_ctor();
 void ctor_char(char *, BIG_INT *);
 void ctor_int(int, BIG_INT *);
 void ctor_long(long, BIG_INT *);
+// void ctor_hex(uint8_t *, BIG_INT*);
 void clear_digit(BIG_INT *);
 
 /**
@@ -71,7 +90,7 @@ void big_int_substract(BIG_INT *, BIG_INT *, BIG_INT *);
 void big_int_multiply(BIG_INT *, BIG_INT *,  BIG_INT *);
 void big_int_divide(BIG_INT *, BIG_INT *, division_result_t *);
 void big_int_modulo(BIG_INT *n, BIG_INT *m);
-void big_int_power(BIG_INT *a, BIG_INT *x);
+void big_int_power(BIG_INT *a, BIG_INT *x, BIG_INT *);
 void big_int_root_square(BIG_INT *, BIG_INT *);
 
 //Primitives
@@ -209,6 +228,32 @@ void ctor_int(int number, BIG_INT * R)
 		printf("in:%d out:%s\ti:%d\n",number,  R->digits, i);
 	#endif
 }
+/**
+ * @brief convert a hex big number represented by array of bytes
+ * 
+ * 0x4A8F62D431BA5F12D4704ACF25D4214A5F22D4502D4204A5F22D2D4204E5B26A4A5F2E5F12D4404
+ * 
+ * @param hex 
+ * @param r 
+ */
+// void ctor_hex(uint8_t * hex, BIG_INT * r){
+// 	if(hex == NULL)return;
+	
+// 	if(*hex=='0' && hex[1]=='x')hex += 2;
+// 	size_t i = 0;
+// 	ARRAY_LEN(hex, len);
+	
+// 	do
+// 	{
+// 		if(IS_DIGIT(*hex)==0){
+			
+// 		}else if('A'){
+// 10
+// 		}
+// 	} while (len--,++hex != '\0');
+	
+
+// }
 
 void toString(int number, uint8_t * str){
 
@@ -384,10 +429,10 @@ void big_int_substract(BIG_INT *A, BIG_INT *B, BIG_INT * R)
 	BIG_INT * ptr = (BIG_INT *)(R->digits + (MAX_DIGIT_LENGHT - i));
 	memcpy(R->digits, ptr, MAX_DIGIT_LENGHT - i);
 	// Implementation to decide the sign of the final BIG INT.
-	R->sign = is_A_greater_than_B_abs ? A->sign : B->sign;
+	R->sign = is_A_greater_than_B_abs == 0x01 ? A->sign : B->sign;
 	clean_zero_in_front(R);
 	#ifdef DEBUG
-		printf("[%s] - [%s]=[%s]\n", A->digits, B->digits,R->digits);
+		printf("[%s] - [%s]=[%c%s]\n", A->digits, B->digits,R->sign, R->digits);
 	#endif
 	// return value;
 }
@@ -555,8 +600,8 @@ void big_int_multiply(BIG_INT * A, BIG_INT * B, BIG_INT * R){
 		free(tmp);
 		free(ptr);
 		free(temporal_big_int);
-		#ifdef DEBUG2
-			printf("[%s] * [%s] = [%s]:lenElse: %d\n", A->digits, B->digits,R->digits, R->length);
+		#ifdef DEBUG
+			printf("big_int_multiply([%s] * [%s]) = [%s]:lenElse: %d\n", A->digits, B->digits,R->digits, R->length);
 		#endif
 	}
 }
@@ -789,6 +834,84 @@ void big_int_divide(BIG_INT * A, BIG_INT *B, division_result_t * division_result
 // }
 
 /**
+ * @brief BIG_INT a power  BIG_INT x
+ * 
+ * 
+ * 
+ * @param a 
+ * @param x 
+ * 
+ */
+ void big_int_power(BIG_INT * a, BIG_INT *x, BIG_INT * R){
+	// #case 1: x is zero, then r is 1.
+	#ifdef DEBUG
+			printf("x.lenght=%d, x.digits=%s\n",x->length, x->digits) ;
+			printf("a.lenght=%d, a.digits=%s\n",a->length, a->digits) ;
+	#endif
+	if(BIG_INT_IS_ZERO(x)){
+		INITIALIZE_BIG_INT_TO(R, '1');
+		return;
+	}
+	// #case 2: x is 1, then r is a.
+	if(BIG_INT_IS_ONE(x)){
+		BIG_INT_COPY_FROM_TO(a, R);
+		return;
+	}
+	//#case 3: a is zero, then r is zero.
+	if(BIG_INT_IS_ZERO(a)){
+		INITIALIZE_BIG_INT_TO(R, '0');
+		return;	
+	}
+	
+
+	BIG_INT * r  = base_ctor();
+	
+
+	BIG_INT * counter = base_ctor();
+	ctor_char("0", counter);
+	BIG_INT * zero = base_ctor();
+	ctor_char("0", zero);
+	BIG_INT * one =  base_ctor();
+	ctor_char("1", one);
+	BIG_INT * tmp = base_ctor();
+	BIG_INT_COPY_FROM_TO(x, tmp);
+	BIG_INT_COPY_FROM_TO(a, R);
+
+	#ifdef DEBUG
+			printf("counter=%s, tmp=%s\n", counter->digits, tmp->digits) ;
+	#endif
+	do
+	{
+		#ifdef DEBUG
+			printf("inside: counter=%s, tmp=%s\n", counter->digits, tmp->digits) ;
+		#endif
+		clear_digit(r);
+		big_int_multiply(R, a, r);
+		#ifdef DEBUG
+			printf("->>>>>>>>%s:L%d: r=%s\n",__FUNCTION__,__LINE__,r->digits);
+		#endif
+		// big_int_sum(R, r, R);
+		BIG_INT_COPY_FROM_TO(r, R);
+		clear_digit(counter);
+		big_int_substract(tmp, one, counter);
+		BIG_INT_COPY_FROM_TO(counter, tmp);
+		#ifdef DEBUG
+			printf("after: counter=%s, tmp=%s, R=%s\n", counter->digits, tmp->digits, R->digits) ;
+		#endif
+	} while (TO_BOOL(big_int_greater_than(tmp, one)));
+
+	#ifdef DEBUG
+			printf("%s^%s=%s\n", a->digits, x->digits, R->digits);
+	#endif
+	free(counter);
+	free(zero);
+	free(one);
+	free(r);
+ }
+
+
+
+/**
  * @brief adds up two number and validate and update the carry value.
  * 
  * @param sum reference that stores the sum accumulated
@@ -873,8 +996,11 @@ uint8_t apply_carry_if_apply(uint8_t * sum, uint8_t * carry){
  */
 uint8_t big_int_greater_than(const BIG_INT * A, const BIG_INT * B)
 {	
+	#ifdef DEBUG
+		printf("%c%s > %c%s = %d\n", A->sign,A->digits,B->sign, B->digits,A->length > B->length );
+	#endif
 	// Case #1. A is positive and B is negative, then A is greater.
-	if (A->sign == '+' && B->sign == '-')return 1;
+	if (A->sign == '+' && B->sign == '-') return 1;
 	// Case #2. A length is larger than B length, then A is greater.
 	else if ((A->length > B->length) && A->sign == '+')return 1;
 	// Case #3. Both Big_int are equals.
@@ -885,17 +1011,19 @@ uint8_t big_int_greater_than(const BIG_INT * A, const BIG_INT * B)
 		while (j < A->length)
 		{
 			//Case #3.1. The digits are equals, then continue.
-			if ((A->digits[j] - '0' == B->digits[j] - '0'))
+			if ((A->digits[j]  == B->digits[j]))
 			{
 				j++;
 				continue;
 			}
 			//Case #3.2. The digit in A is larger than B.
-			else if ((A->digits[j] - '0' > B->digits[j] - '0') && (A->sign == '+'))return 1;
+			else if ((A->digits[j] > B->digits[j]) && (A->sign == '+'))return 1;
 			//Case #3.3. otherwise.		
 			else return 0;
 			j++;
 		}
+		// Case #3.4: A and B are equal. Then A isn't greater than B.
+		return 0;
 	}
 	// Default case: A is not greater B. 
 	else return 0;

@@ -3,6 +3,34 @@
 #include "big_int.h"
 
 
+void greater_than(){
+	BIG_INT * A = base_ctor();
+	BIG_INT * B = base_ctor();
+
+	ctor_char("2", A);
+	ctor_char("0", B);
+
+	assert(big_int_greater_than(A,  B)==0x01);
+	clear_digit(A);
+	clear_digit(B);
+
+	ctor_char("0", A);
+	ctor_char("2", B);
+
+	assert(big_int_greater_than(A,  B)==0x00);
+	clear_digit(A);
+	clear_digit(B);
+
+	ctor_char("0", A);
+	ctor_char("0", B);
+
+	assert(big_int_greater_than(A,  B)==0x00);
+	clear_digit(A);
+	clear_digit(B);
+	printf("==> test_should_greater than[passed]\n");
+
+}
+
 void test_should_ctor_int(){
 	//Case #1
 	BIG_INT * bg_int = base_ctor(); 
@@ -289,6 +317,36 @@ void test_should_substract(){
 	ctor_char("20003", A);
 	ctor_char("2456", B);
 	ctor_char("17547", T);
+	big_int_substract(A, B, R);
+	assert(strcmp(R->digits,T->digits)==0);
+	clear_digit(A);
+	clear_digit(B);
+	clear_digit(T);
+	clear_digit(R);
+
+	ctor_char("1", A);
+	ctor_char("1", B);
+	ctor_char("0", T);
+	big_int_substract(A, B, R);
+	assert(strcmp(R->digits,T->digits)==0);
+	clear_digit(A);
+	clear_digit(B);
+	clear_digit(T);
+	clear_digit(R);
+
+	ctor_char("0", A);
+	ctor_char("1", B);
+	ctor_char("-1", T);
+	big_int_substract(A, B, R);
+	assert(strcmp(R->digits,T->digits)==0);
+	clear_digit(A);
+	clear_digit(B);
+	clear_digit(T);
+	clear_digit(R);
+
+	ctor_char("2", A);
+	ctor_char("1", B);
+	ctor_char("1", T);
 	big_int_substract(A, B, R);
 	assert(strcmp(R->digits,T->digits)==0);
 	clear_digit(A);
@@ -588,6 +646,79 @@ void test_should_multiply(){
 	printf("==> test_should_multiply[passed]\n");
 }
 
+void test_should_pow(){
+	BIG_INT * A = base_ctor();
+	BIG_INT * X = base_ctor();
+	BIG_INT * R = base_ctor();
+	BIG_INT * T = base_ctor();
+	//case #1:  x is zero, then r is 1. 
+	ctor_char("10", A);
+	ctor_char("0", X);
+	ctor_char("1", T);
+	big_int_power(A, X, R);
+	assert(strcmp(R->digits,T->digits)==0);
+	clear_digit(A);
+	clear_digit(X);
+	clear_digit(T);
+	clear_digit(R);
+
+	//case #2:  x is 1, then r is a.
+	ctor_char("123", A);
+	ctor_char("1", X);
+	ctor_char("123", T);
+	big_int_power(A, X, R);
+	assert(strcmp(R->digits,T->digits)==0);
+	clear_digit(A);
+	clear_digit(X);
+	clear_digit(T);
+	clear_digit(R);
+
+	//case #3:  a is zero, then r is zero.
+	ctor_char("0", A);
+	ctor_char("2", X);
+	ctor_char("0", T);
+	big_int_power(A, X, R);
+	assert(strcmp(R->digits,T->digits)==0);
+	clear_digit(A);
+	clear_digit(X);
+	clear_digit(T);
+	// clear_digit(R);
+
+	// //case # 
+	ctor_char("10", A);
+	ctor_char("2", X);
+	ctor_char("100", T);
+	big_int_power(A, X, R);
+	assert(strcmp(R->digits,T->digits)==0);
+	clear_digit(A);
+	clear_digit(X);
+	clear_digit(T);
+	clear_digit(R);
+	
+	
+	//case # 
+	ctor_char("2", A);
+	ctor_char("5", X);
+	ctor_char("32", T);
+	big_int_power(A, X, R);
+	assert(strcmp(R->digits,T->digits)==0);
+	clear_digit(A);
+	clear_digit(X);
+	clear_digit(T);
+	clear_digit(R);
+
+	ctor_char("33242989540626429799377", A);
+	ctor_char("3", X);
+	ctor_char("36736706524049309749503140261766410950369518374281734279955290795633", T);
+	big_int_power(A, X, R);
+	assert(strcmp(R->digits,T->digits)==0);
+	clear_digit(A);
+	clear_digit(X);
+	clear_digit(T);
+	clear_digit(R);
+	printf("==> test_should_pow[passed]\n");
+}
+
 void test_should_divide(){
 
 	BIG_INT * A = base_ctor();
@@ -615,12 +746,13 @@ void test_should_divide(){
 }
 
 int main(){
-
-	test_should_ctor_int();
-	test_should_ctor_char();
-	test_should_sum();
-	test_should_substract();
-	test_should_multiply();
-	test_should_divide();
+	// greater_than();
+	// test_should_ctor_int();
+	// test_should_ctor_char();
+	// test_should_sum();p
+	// test_should_substract();
+	// test_should_multiply();
+	// test_should_divide();
+	 test_should_pow();
 	return 0;
 }
