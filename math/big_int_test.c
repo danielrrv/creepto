@@ -79,6 +79,21 @@ void test_should_ctor_char(){
 	printf("==> test_should_ctor_char[passed]\n");
 	
 }
+
+void test_should_ctor_hex(){
+	BIG_INT * bg_hex = base_ctor();
+	uint8_t hex[] = "0x12AF";
+	ctor_hex(hex, bg_hex);
+	clear_digit(bg_hex);
+	uint8_t hex1[] = "0x1CFF4B";
+	ctor_hex(hex1, bg_hex);
+
+	clear_digit(bg_hex);
+	uint8_t incorrect[] = "0x1CFT4B";
+	ctor_hex(incorrect, bg_hex);
+
+	free(bg_hex);
+}
 void test_should_sum(){
 	BIG_INT * A = base_ctor();
 	BIG_INT * B = base_ctor();
@@ -716,6 +731,12 @@ void test_should_pow(){
 	clear_digit(X);
 	clear_digit(T);
 	clear_digit(R);
+
+
+	free(A);
+	free(X);
+	free(T);
+	free(R);
 	printf("==> test_should_pow[passed]\n");
 }
 
@@ -749,10 +770,11 @@ int main(){
 	// greater_than();
 	// test_should_ctor_int();
 	// test_should_ctor_char();
-	// test_should_sum();p
+	test_should_ctor_hex();
+	// test_should_sum();
 	// test_should_substract();
 	// test_should_multiply();
 	// test_should_divide();
-	 test_should_pow();
+	//  test_should_pow();
 	return 0;
 }

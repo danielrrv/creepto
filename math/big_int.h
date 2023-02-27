@@ -5,12 +5,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define IS_DIGIT(c) ((c >= '0' && '9' >= c) ? 1 : 0)
+#define IS_HEXALPH(c) ((('a'<= c && 'f'<= c) || ('A' <= c &&  c <= 'F') ) ? 1 : 0)
 
-// #define ARRAY_LEN(array, length_name) \
-//  	uint16_t length_name ; \
-// 	while( *array != '\0' )##length_name++;
+
+#define ARRAY_LEN(array, length_name) \
+ 	uint16_t ##length_name; \
+	while( *array != '\0' ) ##length_name++;
 
 #define BIG_INT_IS_ZERO(big_int) (big_int->length == 1 && big_int->digits[0]=='0')
 #define BIG_INT_IS_ONE(big_int) (big_int->length == 1 && big_int->digits[0]=='1')
@@ -64,7 +67,7 @@ BIG_INT *base_ctor();
 void ctor_char(char *, BIG_INT *);
 void ctor_int(int, BIG_INT *);
 void ctor_long(long, BIG_INT *);
-// void ctor_hex(uint8_t *, BIG_INT*);
+void ctor_hex(uint8_t *, BIG_INT*);
 void clear_digit(BIG_INT *);
 
 /**
@@ -109,6 +112,7 @@ uint8_t apply_carry_if_apply(uint8_t *, uint8_t *);
 uint8_t big_int_greater_than(const BIG_INT * a, const BIG_INT *b);
 uint8_t big_int_greater_than_abs(BIG_INT  * A, BIG_INT *B);
 uint8_t big_int_equal_to(BIG_INT *a, BIG_INT *b);
+void toString(int number, uint8_t * str);
 
 
 // Utils
@@ -116,7 +120,9 @@ uint16_t insert_at(BIG_INT *, uint8_t, uint16_t);
 uint8_t invert_sign(uint8_t sign){
 	return sign=='+' ? '-':'+';
 }
+
 void clean_zero_in_front(BIG_INT *);
+bool is_valid_hex_string(uint8_t * str, uint16_t len);
 
 /**
  * @brief Simple BIG_INT constructor.  ->digits allocated memset(0) 
@@ -126,12 +132,15 @@ void clean_zero_in_front(BIG_INT *);
 BIG_INT *base_ctor()
 {
 	BIG_INT *value = (BIG_INT *)malloc(sizeof(BIG_INT));
+	if(value==NULL)return NULL;
 	value->length = 0;
 	value->sign = '+';
 	value->digits = (uint8_t *)malloc(sizeof(uint8_t) * MAX_DIGIT_LENGHT);
+	if(value->digits==NULL) return NULL;
 	memset(value->digits, '\0', MAX_DIGIT_LENGHT);
 	return value;
 }
+
 
 
 
@@ -193,13 +202,14 @@ void ctor_char(char *cc, BIG_INT * R)
  */
 void ctor_int(int number, BIG_INT * R)
 {
+	BIG_INT  * r = base_ctor();
 	if (0 > number)
 	{
 		R->sign = '-';
 		number *= -1;
 	}
 	uint8_t tmp[MAX_INT_DIGIT];
-	memset(tmp, 0, MAX_INT_DIGIT);
+	memset(tmp, '\0', MAX_INT_DIGIT);
 	int i = 0;
 	if(number >= 10){
 		while ((number / 10) != 0)
@@ -210,20 +220,21 @@ void ctor_int(int number, BIG_INT * R)
 			{
 				number /= 10;
 			}
-			R->digits[MAX_DIGIT_LENGHT - i - 1] = mod + '0';
+			r->digits[MAX_DIGIT_LENGHT - i - 1] = mod + '0';
 			i++;
 		}
-		insert_at(R, (number % 10) + '0', MAX_DIGIT_LENGHT - i - 1);
-		R->length = i + 1;
+		insert_at(r, (number % 10) + '0', MAX_DIGIT_LENGHT - i - 1);
+		r->length = i + 1;
 		
 	}else{
-		R->digits[MAX_DIGIT_LENGHT - 1] = number % 10 + '0';
-		R->length = 1;
+		r->digits[MAX_DIGIT_LENGHT - 1] = number % 10 + '0';
+		r->length = 1;
 		// i++;
 	}
-	R->digits = R->digits + (MAX_DIGIT_LENGHT - i - 1);
-	printf("in:%d out:%s\ti:%d\n",number,  R->digits, i);
-	
+	r->digits = r->digits + (MAX_DIGIT_LENGHT - i - 1);
+
+	BIG_INT_COPY_FROM_TO(r, R);
+	free(r);
 	#ifdef DEBUG
 		printf("in:%d out:%s\ti:%d\n",number,  R->digits, i);
 	#endif
@@ -236,52 +247,97 @@ void ctor_int(int number, BIG_INT * R)
  * @param hex 
  * @param r 
  */
-// void ctor_hex(uint8_t * hex, BIG_INT * r){
-// 	if(hex == NULL)return;
+void ctor_hex(uint8_t * hex, BIG_INT * r){
 	
-// 	if(*hex=='0' && hex[1]=='x')hex += 2;
-// 	size_t i = 0;
-// 	ARRAY_LEN(hex, len);
+	if(hex == NULL){ r = NULL; return;}
+
+	if(*hex == '0' && hex[1] == 'x')hex += 2;
 	
-// 	do
-// 	{
-// 		if(IS_DIGIT(*hex)==0){
-			
-// 		}else if('A'){
-// 10
-// 		}
-// 	} while (len--,++hex != '\0');
-	
+	uint16_t len;
+	while( *(hex++) != '\0' )len++;
 
-// }
+	hex -= len + 1; 
 
-void toString(int number, uint8_t * str){
-
-	if(str == NULL)return;
-
-	int i = 0;
-	if(number > 10){
-		while ((number / 10) != 0)
-		{
-			int mod = number % 10;
-			number -= mod;
-			if ((number % 10) == 0)
-			{
-				number /= 10;
-			}
-			str[MAX_DIGIT_LENGHT - i - 1] = mod + '0';
-			i++;
-		}
-		str[MAX_DIGIT_LENGHT - i - 1]= (number % 10) + '0' ;
+	if(!is_valid_hex_string(hex, len)){
+		r = NULL;
+		return;
+	};
 		
-	}else{
-		str[MAX_DIGIT_LENGHT - 1] = number % 10 + '0';
+
+	BIG_INT * power = base_ctor();
+	BIG_INT * decimal = base_ctor();
+	BIG_INT * sixteen = base_ctor();
+	BIG_INT * length = base_ctor();
+	BIG_INT * val = base_ctor();
+
+	BIG_INT * product = base_ctor();
+
+	ctor_char("0", decimal);
+	ctor_char("0", power);
+	ctor_char("16", sixteen);
+	ctor_char("1", product);
+
+	for (size_t i = 0; 0 < len; i++, len--)
+	{
+		uint8_t _val = 0;
+		if(IS_DIGIT(hex[i])){
+			_val = hex[i] - 48;
+		}else if(hex[i]>='a' &&  hex[i] <= 'f'){
+			_val = (*hex) - 97 + 10;
+		}else if(hex[i]>='A' &&  hex[i] <= 'F'){
+			_val = hex[i] - 65 + 10;
+		}
+		
+		clear_digit(val);
+		ctor_int(_val, val);
+		#ifdef DEBUG3
+			printf("i=%ld\tc=%c,_val=%d,val.digits=%s, val.length=%d\n",i, hex[i], _val,val->digits, val->length);
+		#endif
+		clear_digit(power);
+		clear_digit(length);
+		
+		ctor_int(len - 1, length);
+		#ifdef DEBUG3
+			printf("func=%s;i=%ld\tlength.digits=%s, length.length=%d\n",__FUNCTION__,i, length->digits, length->length);
+		#endif
+	
+		
+		big_int_power(sixteen, length, power);
+
+		#ifdef DEBUG
+			printf("i=%ld\tpower.digits=%s, power.length=%d\n", i,power->digits, power->length);
+		#endif
+
+		#ifdef DEBUG
+			printf("i=%ld\tproduct.digits=%s, product.length=%d\n", i, product->digits, product->length);
+		#endif
+		clear_digit(product);
+		big_int_multiply(val, power, product);
+
+
+		#ifdef DEBUG
+			printf("i=%ld\tproduct.digits=%s, product.length=%d\n", i, product->digits, product->length);
+		#endif
+		big_int_sum(decimal,product, decimal);
+		#ifdef DEBUG
+			printf("i=%ld\tdecimal.digits=%s, decimal.length=%d\n", i, decimal->digits, decimal->length);
+		#endif
 	}
-	memmove(str, str + (MAX_DIGIT_LENGHT - i - 1), i + 1);
+	
+	
+	BIG_INT_COPY_FROM_TO(decimal, r);
+
+	#ifdef DEBUG3
+			printf("hex:%s, %s\n", hex,r->digits);
+	#endif
+	free(decimal);
+	free(sixteen);
+	free(power);
+	free(product);
 }
 
-void toString(int number, uint8_t * str){
 
+void toString(int number, uint8_t * str){
 	if(str == NULL)return;
 
 	int i = 0;
@@ -330,7 +386,7 @@ void ctor_long(long number, BIG_INT * R)
 	}
 	insert_at(R, (number % 10) + '0', MAX_DIGIT_LENGHT - i - 1);
 	R->digits = R->digits + (MAX_DIGIT_LENGHT - i - 1);
-	R->length = i;
+	R->length = number > 10 ? i : 1;
 }
 
 void big_int_sum(BIG_INT *A, BIG_INT *B, BIG_INT * R)
@@ -899,30 +955,19 @@ void big_int_divide(BIG_INT * A, BIG_INT *B, division_result_t * division_result
 	BIG_INT * one =  base_ctor();
 	ctor_char("1", one);
 	BIG_INT * tmp = base_ctor();
+
 	BIG_INT_COPY_FROM_TO(x, tmp);
 	BIG_INT_COPY_FROM_TO(a, R);
 
-	#ifdef DEBUG
-			printf("counter=%s, tmp=%s\n", counter->digits, tmp->digits) ;
-	#endif
 	do
 	{
-		#ifdef DEBUG
-			printf("inside: counter=%s, tmp=%s\n", counter->digits, tmp->digits) ;
-		#endif
+
 		clear_digit(r);
 		big_int_multiply(R, a, r);
-		#ifdef DEBUG
-			printf("->>>>>>>>%s:L%d: r=%s\n",__FUNCTION__,__LINE__,r->digits);
-		#endif
-		// big_int_sum(R, r, R);
 		BIG_INT_COPY_FROM_TO(r, R);
 		clear_digit(counter);
 		big_int_substract(tmp, one, counter);
 		BIG_INT_COPY_FROM_TO(counter, tmp);
-		#ifdef DEBUG
-			printf("after: counter=%s, tmp=%s, R=%s\n", counter->digits, tmp->digits, R->digits) ;
-		#endif
 	} while (TO_BOOL(big_int_greater_than(tmp, one)));
 
 	#ifdef DEBUG
@@ -1096,4 +1141,13 @@ void clean_zero_in_front(BIG_INT * big_int){
 		big_int->digits++;
 		big_int->length--;
 	}	
+}
+
+bool is_valid_hex_string(uint8_t * str, uint16_t len){
+	for(int i = 0;  i < len; i++){
+		if(0x01 ^ (IS_DIGIT(str[i]) | IS_HEXALPH(str[i])) ){
+		  return false;
+		}
+	}
+	return true;
 }
