@@ -97,12 +97,12 @@ void big_int_power(BIG_INT *a, BIG_INT *x, BIG_INT *);
 void big_int_root_square(BIG_INT *, BIG_INT *);
 
 //Primitives
-void add(uint8_t * sum, uint8_t a, uint8_t b, uint8_t * carry);
-void substract(uint8_t * needs_borrow, uint8_t * substraction, uint8_t a, uint8_t b, uint8_t * carry);
-uint8_t primitive_substraction(uint8_t, uint8_t, uint8_t);
-uint8_t apply_borrowing_if_apply(uint8_t *, uint8_t, uint8_t, const uint8_t);
-uint8_t primitive_sum(uint8_t, uint8_t, uint8_t);
-uint8_t apply_carry_if_apply(uint8_t *, uint8_t *);
+static void add(uint8_t * sum, uint8_t a, uint8_t b, uint8_t * carry);
+static void substract(uint8_t * needs_borrow, uint8_t * substraction, uint8_t a, uint8_t b, uint8_t * carry);
+static uint8_t primitive_substraction(uint8_t, uint8_t, uint8_t);
+static uint8_t apply_borrowing_if_apply(uint8_t *, uint8_t, uint8_t, const uint8_t);
+static uint8_t primitive_sum(uint8_t, uint8_t, uint8_t);
+static uint8_t apply_carry_if_apply(uint8_t *, uint8_t *);
 
 
 // uint8_t valid_integer_at()
@@ -116,13 +116,13 @@ void toString(int number, uint8_t * str);
 
 
 // Utils
-uint16_t insert_at(BIG_INT *, uint8_t, uint16_t);
+static uint16_t insert_at(BIG_INT *, uint8_t, uint16_t);
 uint8_t invert_sign(uint8_t sign){
 	return sign=='+' ? '-':'+';
 }
 
 void clean_zero_in_front(BIG_INT *);
-bool is_valid_hex_string(uint8_t * str, uint16_t len);
+static bool is_valid_hex_string(uint8_t * str, uint16_t len);
 
 /**
  * @brief Simple BIG_INT constructor.  ->digits allocated memset(0) 
@@ -249,27 +249,35 @@ void ctor_int(int number, BIG_INT * R)
  */
 void ctor_hex(uint8_t * hex, BIG_INT * r){
 	
+	// Exception #1: hex shouldn't be null.
 	if(hex == NULL){ r = NULL; return;}
 
+	//Implementation to discard and the first 2 characters of hex validation. 
 	if(*hex == '0' && hex[1] == 'x')hex += 2;
-	
+	//Exception #2: Implementation to return fast in case the string character haven't started by [0x]
+	else{r=NULL; return;}
+
+	//implementation to get the length of the array. TODO: Move it to MACRS
 	uint16_t len;
 	while( *(hex++) != '\0' )len++;
-
+	//Implementation to move back the pointer to the original position.
 	hex -= len + 1; 
 
-	if(!is_valid_hex_string(hex, len)){
-		r = NULL;
-		return;
-	};
-		
 
+	//Exception # 3: the characters must be alphanumeric from [0-9][aA-fF].
+	if(!is_valid_hex_string(hex, len)){r = NULL;return;}
+		
+	//What it is for: track the power result as intermidiate factor for the final multiplication later on.
 	BIG_INT * power = base_ctor();
+	//What it is for: track the decimal result which is the function pointer return.
 	BIG_INT * decimal = base_ctor();
 	BIG_INT * sixteen = base_ctor();
+	//As long as we move down, we elevate sixteen at the power of length. 
 	BIG_INT * length = base_ctor();
+	//What it is for: track the value from the conversion from hex to decimal.
 	BIG_INT * val = base_ctor();
 
+	// What it is for; track the final product of iteration.
 	BIG_INT * product = base_ctor();
 
 	ctor_char("0", decimal);
@@ -279,6 +287,8 @@ void ctor_hex(uint8_t * hex, BIG_INT * r){
 
 	for (size_t i = 0; 0 < len; i++, len--)
 	{
+
+		//Implementation to convert hexadecimal to decimal based on ascii code.
 		uint8_t _val = 0;
 		if(IS_DIGIT(hex[i])){
 			_val = hex[i] - 48;
@@ -287,21 +297,23 @@ void ctor_hex(uint8_t * hex, BIG_INT * r){
 		}else if(hex[i]>='A' &&  hex[i] <= 'F'){
 			_val = hex[i] - 65 + 10;
 		}
-		
+		// Prevent data corruption and save the program to allocate new memory in each iteration.
 		clear_digit(val);
+		//Let's move _val into a BIG INT to over on BIG INT functions.
 		ctor_int(_val, val);
 		#ifdef DEBUG3
 			printf("i=%ld\tc=%c,_val=%d,val.digits=%s, val.length=%d\n",i, hex[i], _val,val->digits, val->length);
 		#endif
+		// Prevent data corruption and save the program to allocate new memory in each iteration.
 		clear_digit(power);
 		clear_digit(length);
-		
+		//Let's move len into a BIG INT to over on BIG INT functions.
 		ctor_int(len - 1, length);
 		#ifdef DEBUG3
 			printf("func=%s;i=%ld\tlength.digits=%s, length.length=%d\n",__FUNCTION__,i, length->digits, length->length);
 		#endif
 	
-		
+		//Implementation to apply the first operation: 16^ length
 		big_int_power(sixteen, length, power);
 
 		#ifdef DEBUG
@@ -311,20 +323,23 @@ void ctor_hex(uint8_t * hex, BIG_INT * r){
 		#ifdef DEBUG
 			printf("i=%ld\tproduct.digits=%s, product.length=%d\n", i, product->digits, product->length);
 		#endif
+		// Prevent data corruption and save the program to allocate new memory in each iteration.
 		clear_digit(product);
+		//Implementation to apply the second of the opetation: val * (16 ^ lengh)
 		big_int_multiply(val, power, product);
 
 
 		#ifdef DEBUG
 			printf("i=%ld\tproduct.digits=%s, product.length=%d\n", i, product->digits, product->length);
 		#endif
+		//Implementation to apply the third and last part of the operation: summing up the product to decimal and keep it up. 
 		big_int_sum(decimal,product, decimal);
 		#ifdef DEBUG
 			printf("i=%ld\tdecimal.digits=%s, decimal.length=%d\n", i, decimal->digits, decimal->length);
 		#endif
 	}
 	
-	
+	//Finally move decimal to r.
 	BIG_INT_COPY_FROM_TO(decimal, r);
 
 	#ifdef DEBUG3
@@ -812,6 +827,7 @@ void big_int_divide(BIG_INT * A, BIG_INT *B, division_result_t * division_result
 
 			BIG_INT * closer_product_plus_zeros = base_ctor();
 			big_int_multiply(closer_product, zeros, closer_product_plus_zeros); 
+			#ifdef DEBUG
 			printf("\n\nremaining[%s]\nquotient[%s]\nzeros[%s]\nnzeros[%d]\ncloser_product[%s]\ncloser_product_plus_zeros[%s]\n\n", 
 				remaining->digits,
 				division_result->quotient->digits, 
@@ -819,7 +835,7 @@ void big_int_divide(BIG_INT * A, BIG_INT *B, division_result_t * division_result
 				zeros->length,
 				closer_product->digits, 
 				closer_product_plus_zeros->digits);
-			
+			#endif
 			BIG_INT * substraction_local = base_ctor(); 
 			big_int_substract(A, closer_product_plus_zeros, substraction_local);//BUG HERE
 			
@@ -924,11 +940,12 @@ void big_int_divide(BIG_INT * A, BIG_INT *B, division_result_t * division_result
  * 
  */
  void big_int_power(BIG_INT * a, BIG_INT *x, BIG_INT * R){
-	// #case 1: x is zero, then r is 1.
+	
 	#ifdef DEBUG
 			printf("x.lenght=%d, x.digits=%s\n",x->length, x->digits) ;
 			printf("a.lenght=%d, a.digits=%s\n",a->length, a->digits) ;
 	#endif
+	// #case 1: x is zero, then r is 1.
 	if(BIG_INT_IS_ZERO(x)){
 		INITIALIZE_BIG_INT_TO(R, '1');
 		return;
@@ -944,29 +961,35 @@ void big_int_divide(BIG_INT * A, BIG_INT *B, division_result_t * division_result
 		return;	
 	}
 	
-
-	BIG_INT * r  = base_ctor();
-	
-
+	// What it is for: To carry product BIG_INT pointer.
+	BIG_INT * product  = base_ctor();
+	// What it is for: To carry iteration in do-while block. big_int_substract does data corruption. Map temporal local pointer to avoid corrupt.
 	BIG_INT * counter = base_ctor();
 	ctor_char("0", counter);
+	
 	BIG_INT * zero = base_ctor();
 	ctor_char("0", zero);
 	BIG_INT * one =  base_ctor();
 	ctor_char("1", one);
 	BIG_INT * tmp = base_ctor();
-
+	// tmp starts being the power exponetial so that we can substract until tmp zero and stop.
 	BIG_INT_COPY_FROM_TO(x, tmp);
+	// R(result) starts being a, which is arbitrary.
 	BIG_INT_COPY_FROM_TO(a, R);
-
 	do
 	{
 
-		clear_digit(r);
-		big_int_multiply(R, a, r);
-		BIG_INT_COPY_FROM_TO(r, R);
+		//What is it for: to avoid data corruption at multiply. clear_digits reuses the memory blocks already allocated.
+		clear_digit(product);
+		//As R be initially a, we apply power algorith a*a*...*a(n)
+		big_int_multiply(R, a, product);
+		//What it does: accummulate the product into R safely.
+		BIG_INT_COPY_FROM_TO(product, R);
+		// Prevent counter being contaminated.
 		clear_digit(counter);
+		//Discount one to the counter. as tmp be counter later on.
 		big_int_substract(tmp, one, counter);
+		//Move counter to tmp to valid it later in the loop condition at while.
 		BIG_INT_COPY_FROM_TO(counter, tmp);
 	} while (TO_BOOL(big_int_greater_than(tmp, one)));
 
@@ -976,7 +999,7 @@ void big_int_divide(BIG_INT * A, BIG_INT *B, division_result_t * division_result
 	free(counter);
 	free(zero);
 	free(one);
-	free(r);
+	free(product);
  }
 
 
@@ -989,7 +1012,7 @@ void big_int_divide(BIG_INT * A, BIG_INT *B, division_result_t * division_result
  * @param b number second
  * @param carry reference that carries the carried value to next sum operation.
  */
-void add(uint8_t * sum, uint8_t a, uint8_t b, uint8_t * carry){
+static void add(uint8_t * sum, uint8_t a, uint8_t b, uint8_t * carry){
 	*sum+= primitive_sum(a, b, *carry);
 	apply_carry_if_apply(sum, carry);
 }
@@ -1002,7 +1025,7 @@ void add(uint8_t * sum, uint8_t a, uint8_t b, uint8_t * carry){
  * @param b number second to be substrated from a.
  * @param borrow if needs_borrowing is true, then take the borrow to the next substraction.
  */
-void substract(uint8_t * needs_borrow, uint8_t * substraction, uint8_t a, uint8_t b, uint8_t * borrow){
+static void substract(uint8_t * needs_borrow, uint8_t * substraction, uint8_t a, uint8_t b, uint8_t * borrow){
 	*needs_borrow = apply_borrowing_if_apply(substraction, a, b, *borrow);
 	*substraction += primitive_substraction(a, b, *borrow);
 	*borrow = *needs_borrow ? 1 : 0;
@@ -1016,7 +1039,7 @@ void substract(uint8_t * needs_borrow, uint8_t * substraction, uint8_t a, uint8_
  * @param carry The carried value to the next adding up.
  * @return uint8_t 
  */
-uint8_t primitive_sum(uint8_t a, uint8_t b, uint8_t carry){
+static uint8_t primitive_sum(uint8_t a, uint8_t b, uint8_t carry){
 	return a + b + carry;
 }
 
@@ -1028,7 +1051,7 @@ uint8_t primitive_sum(uint8_t a, uint8_t b, uint8_t carry){
  * @param initial_borrow borrowed value from previous operation.
  * @return uint8_t 
  */
-uint8_t primitive_substraction(uint8_t a, uint8_t b, uint8_t initial_borrow){
+static uint8_t primitive_substraction(uint8_t a, uint8_t b, uint8_t initial_borrow){
 	return a - b  - initial_borrow;
 }
 
@@ -1041,7 +1064,7 @@ uint8_t primitive_substraction(uint8_t a, uint8_t b, uint8_t initial_borrow){
  * @param initial_borrow initial borrow (readonly)
  * @return uint8_t 
  */
-uint8_t apply_borrowing_if_apply(uint8_t * substraction, uint8_t a, uint8_t b, const uint8_t initial_borrow){
+static uint8_t apply_borrowing_if_apply(uint8_t * substraction, uint8_t a, uint8_t b, const uint8_t initial_borrow){
 	uint8_t needs_borrowing = (a - initial_borrow < b || a == 0 && b!=0) ;
 	*substraction += needs_borrowing ? 10 : 0;
 	return needs_borrowing;
@@ -1053,7 +1076,7 @@ uint8_t apply_borrowing_if_apply(uint8_t * substraction, uint8_t a, uint8_t b, c
  * @param carry 
  * @return uint8_t 
  */
-uint8_t apply_carry_if_apply(uint8_t * sum, uint8_t * carry){
+static uint8_t apply_carry_if_apply(uint8_t * sum, uint8_t * carry){
 		*carry = *sum >= 10 ? 1 : 0;
 }
 
@@ -1123,7 +1146,7 @@ uint8_t big_int_greater_than_abs(BIG_INT  * A, BIG_INT *B){
  * @param index 
  * @return uint16_t 
  */
-uint16_t insert_at(BIG_INT *big_int, uint8_t value, uint16_t index)
+static uint16_t insert_at(BIG_INT *big_int, uint8_t value, uint16_t index)
 {
 	big_int->digits[index] = value;
 	big_int->length++;
@@ -1143,7 +1166,7 @@ void clean_zero_in_front(BIG_INT * big_int){
 	}	
 }
 
-bool is_valid_hex_string(uint8_t * str, uint16_t len){
+static bool is_valid_hex_string(uint8_t * str, uint16_t len){
 	for(int i = 0;  i < len; i++){
 		if(0x01 ^ (IS_DIGIT(str[i]) | IS_HEXALPH(str[i])) ){
 		  return false;
