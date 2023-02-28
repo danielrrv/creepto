@@ -15,6 +15,13 @@ enum
 	B = 64
 };
 // H(K XOR opad, H(K XOR ipad, text))
+
+/// @brief Generate a hash-code based on a key and data.
+/// @param l_key 
+/// @param key_length 
+/// @param message 
+/// @param message_length 
+/// @param digest 
 void sha256_hmac(uint8_t *l_key, size_t key_length, uint8_t *message, size_t message_length, uint8_t digest[SHA256_MESSAGE_BLOCK_SIZE / 2])
 {
 	uint8_t *key = (uint8_t *)malloc(sizeof(uint8_t) * key_length);
@@ -30,7 +37,10 @@ void sha256_hmac(uint8_t *l_key, size_t key_length, uint8_t *message, size_t mes
 	//    first hashed using H)
 	if (key_length > B)
 	{
-		hash_256(key, key, key_length);
+		SHA256_t_ctx ctx;
+		SHA256(&ctx);
+		sha256_update(&ctx, key, key_length);
+		sha256_digest(&ctx, key);
 		key_length = 32;
 	}
 	// (1) append zeros to the end of K to create a B byte string
@@ -58,23 +68,30 @@ void sha256_hmac(uint8_t *l_key, size_t key_length, uint8_t *message, size_t mes
 	memcpy(key_ipad_message + B, message, message_length);
 	// apply H to the stream generated in step (3)
 	uint8_t H_key_ipad_message[B / 2];
-	hash_256(key_ipad_message, H_key_ipad_message, B + message_length);
+	{
+		SHA256_t_ctx ctx;
+		SHA256(&ctx);
+		sha256_update(&ctx,key_ipad_message,  B + message_length);
+		sha256_digest(&ctx, H_key_ipad_message);
+	}
 	//   (6) append the H result from step (4) to the B byte string
 	//     resulting from step (5)
 	uint8_t *key_opad_H_key_ipad_message = (uint8_t *)malloc(sizeof(uint8_t) * ((B / 2) + B));
-	// memset(key_opad_H_key_ipad_message, 0, sizeof(uint8_t) * ((B / 2) + B));
 	memcpy(key_opad_H_key_ipad_message, key_opad, B);
 	memcpy(key_opad_H_key_ipad_message + B, H_key_ipad_message, B / 2);
 	// (7) apply H to the stream generated in step (6) and output
 	//     the result
 	uint8_t H_key_opad_H_key_ipad_message[B / 2];
-
-	hash_256(key_opad_H_key_ipad_message, H_key_opad_H_key_ipad_message, (B / 2) + B);
-	memcpy(&digest, H_key_opad_H_key_ipad_message, B / 2);
+	{
+		SHA256_t_ctx ctx;
+		SHA256(&ctx);
+		sha256_update(&ctx,key_opad_H_key_ipad_message, (B / 2) + B );
+		sha256_digest(&ctx,H_key_opad_H_key_ipad_message);
+	}
+	memcpy(digest, H_key_opad_H_key_ipad_message, B / 2);
 	free(key);
 	free(key_ipad_message);
 	free(key_opad_H_key_ipad_message);
-	return H_key_opad_H_key_ipad_message;
 }
 
 #endif
