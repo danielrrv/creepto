@@ -6,9 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-
-#define IS_DIGIT(c) ((c >= '0' && '9' >= c) ? 1 : 0)
-#define IS_HEXALPH(c) ((('a'<= c && 'f'<= c) || ('A' <= c &&  c <= 'F') ) ? 1 : 0)
+// const a = 'd'
+#define IS_DIGIT(c) (( '0'<= c &&  c<='9') ? 1 : 0)
+#define IS_HEXALPH(c) ((('a'<= c && c<='f') || ('A' <= c &&  c <= 'F') ) ? 1 : 0)
 
 
 #define ARRAY_LEN(array, length_name) \
@@ -301,7 +301,7 @@ void ctor_hex(uint8_t * hex, BIG_INT * r){
 		clear_digit(val);
 		//Let's move _val into a BIG INT to over on BIG INT functions.
 		ctor_int(_val, val);
-		#ifdef DEBUG3
+		#ifdef DEBUG
 			printf("i=%ld\tc=%c,_val=%d,val.digits=%s, val.length=%d\n",i, hex[i], _val,val->digits, val->length);
 		#endif
 		// Prevent data corruption and save the program to allocate new memory in each iteration.
@@ -309,7 +309,7 @@ void ctor_hex(uint8_t * hex, BIG_INT * r){
 		clear_digit(length);
 		//Let's move len into a BIG INT to over on BIG INT functions.
 		ctor_int(len - 1, length);
-		#ifdef DEBUG3
+		#ifdef DEBUG
 			printf("func=%s;i=%ld\tlength.digits=%s, length.length=%d\n",__FUNCTION__,i, length->digits, length->length);
 		#endif
 	

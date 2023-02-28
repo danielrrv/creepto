@@ -88,9 +88,18 @@ void test_should_ctor_hex(){
 	uint8_t hex1[] = "0x1CFF4B";
 	ctor_hex(hex1, bg_hex);
 
+
+
+	clear_digit(bg_hex);
+	uint8_t long_hex[] = "0x3077020101042032fcda8a20f7de2978ba5a7ad9887e7b81618f77514faf1eacfe7ddbe1187a7ca00a06082a8648ce3d030107a14403420004a0cffedb4cdd8553056bc7aa8a0314fe5483a319e916806312fc71f7ec6ac2b148ba5d422da43a566712d855b3b4ae01b699a71b5d70339c3948216aa52c27d7";
+	ctor_hex(long_hex, bg_hex);
+
 	clear_digit(bg_hex);
 	uint8_t incorrect[] = "0x1CFT4B";
 	ctor_hex(incorrect, bg_hex);
+
+	assert(bg_hex==NULL);
+	printf("==> test_should_ctor_hex[passed]\n");
 
 	free(bg_hex);
 }
