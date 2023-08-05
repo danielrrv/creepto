@@ -89,7 +89,7 @@ static uint32_t SSIG1(uint32_t x)
 	return ROTR(17, x) ^ ROTR(19, x) ^ (x >> 10);
 }
 
-static start_message_buffer(SHA256_t_ctx *context)
+static void start_message_buffer(SHA256_t_ctx *context)
 {
 	context->sha256_message.last_block = 0;
 	context->sha256_message.bits_length = 0;
@@ -180,10 +180,6 @@ void process_hash(SHA256_t_ctx *sha256_ctx, sha256_message_t *sha256_message)
 	for (uint32_t i = 0; i < sha256_message->last_block; i++)
 	{
 		memset(W, 0, SHA256_MESSAGE_BLOCK_SIZE * sizeof(uint32_t));
-		for (size_t i = 0; i < SHA256_MESSAGE_BLOCK_SIZE; i++)
-		{
-			printf("%d=%02x\n",i, sha256_message->message[i]);
-		}
 		prepare_W(W, sha256_message->message + (i * SHA256_MESSAGE_BLOCK_SIZE));
 		uint32_t T1;
 		uint32_t T2;
@@ -211,12 +207,12 @@ void process_hash(SHA256_t_ctx *sha256_ctx, sha256_message_t *sha256_message)
 		}
 		sha256_ctx->H[0] += a;
 		sha256_ctx->H[1] += b;
-		(sha256_ctx->H[2]) += c;
-		// sha256_ctx->H[3] += d;
-		// sha256_ctx->H[4] += e;
-		// sha256_ctx->H[5] += f;
-		// sha256_ctx->H[6] += g;
-		// sha256_ctx->H[7] += h;
+		sha256_ctx->H[2]+=c;
+		sha256_ctx->H[3] += d;
+		sha256_ctx->H[4] += e;
+		sha256_ctx->H[5] += f;
+		sha256_ctx->H[6] += g;
+		sha256_ctx->H[7] += h;
 	}
 }
 
@@ -278,11 +274,8 @@ void sha256_update(SHA256_t_ctx *context, uint8_t *message, uint64_t message_len
 void sha256_digest(SHA256_t_ctx *context, uint8_t digest_output[SHA256_MESSAGE_BLOCK_SIZE / 2])
 {
 	padd_message(&context->sha256_message);
-	
-	// printf("%d\n", context->sha256_message.message_length);
-	// printf("%d\n", context->sha256_message.last_block);
-	process_hash(&context, &context->sha256_message);
-	// from_32_to_8(&context->H, digest_output, SHA256_MESSAGE_BLOCK_SIZE / 2);
+	process_hash(context, &context->sha256_message);
+	from_32_to_8(context->H, digest_output, SHA256_MESSAGE_BLOCK_SIZE / 2);
 }
 
 #endif
