@@ -18,10 +18,11 @@
 #define BIG_INT_IS_ZERO(big_int) (big_int->length == 1 && big_int->digits[0]=='0')
 #define BIG_INT_IS_ONE(big_int) (big_int->length == 1 && big_int->digits[0]=='1')
 
-#define INITIALIZE_BIG_INT_TO(big_int, d) \
+// Initialize
+#define INITIALIZE_BIG_INT_TO(big_int, value, lenght) \
 	memset(big_int->digits, '\0', sizeof(uint8_t) * MAX_DIGIT_LENGHT); \
-	big_int->digits[0] = d; \
-	big_int->length = 1;
+	big_int->digits[0] = value; \
+	big_int->length = lenght;
 
 #define BIG_INT_COPY_FROM_TO(a, b) \
 	memcpy(b->digits, a->digits, a->length);\
@@ -253,7 +254,7 @@ void ctor_hex(uint8_t * hex, BIG_INT * r){
 	if(hex == NULL){ r = NULL; return;}
 
 	//Implementation to discard and the first 2 characters of hex validation. 
-	if(*hex == '0' && hex[1] == 'x')hex += 2;
+	if(*hex == '0' && (hex[1] == 'x'|| hex[1] == 'X'))hex += 2;
 	//Exception #2: Implementation to return fast in case the string character haven't started by [0x]
 	else{r=NULL; return;}
 
@@ -947,7 +948,7 @@ void big_int_divide(BIG_INT * A, BIG_INT *B, division_result_t * division_result
 	#endif
 	// #case 1: x is zero, then r is 1.
 	if(BIG_INT_IS_ZERO(x)){
-		INITIALIZE_BIG_INT_TO(R, '1');
+		INITIALIZE_BIG_INT_TO(R, '1', 1);
 		return;
 	}
 	// #case 2: x is 1, then r is a.
@@ -957,7 +958,7 @@ void big_int_divide(BIG_INT * A, BIG_INT *B, division_result_t * division_result
 	}
 	//#case 3: a is zero, then r is zero.
 	if(BIG_INT_IS_ZERO(a)){
-		INITIALIZE_BIG_INT_TO(R, '0');
+		INITIALIZE_BIG_INT_TO(R, '0', 1);
 		return;	
 	}
 	

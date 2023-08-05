@@ -14,7 +14,14 @@ int main(int argc, char *argv[])
 	if (bytesRead == 0)
 		return 1;
 	uint8_t digest[SHA256_MESSAGE_BLOCK_SIZE / 2];
-	hash_256(message, digest, bytesRead);
+	
+	SHA256_t_ctx context;
+	SHA256(&context);
+	sha256_update(&context, message, bytesRead);
+	sha256_update(&context, message, bytesRead);
+	sha256_digest(&context, digest);
+	// hash_256(message, digest, bytesRead);
+	
 	hex_to_char_buffer(digest, output);
 	write(1, output, SHA256_MESSAGE_BLOCK_SIZE);
 	write(1, "\n", 1);

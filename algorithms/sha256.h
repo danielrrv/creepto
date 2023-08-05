@@ -89,7 +89,15 @@ static uint32_t SSIG1(uint32_t x)
 	return ROTR(17, x) ^ ROTR(19, x) ^ (x >> 10);
 }
 
-void start_context_sha256(SHA256_t_ctx *context)
+static start_message_buffer(SHA256_t_ctx *context)
+{
+	context->sha256_message.last_block = 0;
+	context->sha256_message.bits_length = 0;
+	context->sha256_message.message_length = 0;
+	context->sha256_message.message = NULL;
+}
+
+static void start_context_sha256(SHA256_t_ctx *context)
 {
 	context->message_block_index = 0;
 	context->H[0] = 0x6a09e667UL;
@@ -100,6 +108,7 @@ void start_context_sha256(SHA256_t_ctx *context)
 	context->H[5] = 0x9b05688cUL;
 	context->H[6] = 0x1f83d9abUL;
 	context->H[7] = 0x5be0cd19UL;
+	start_message_buffer(context);
 }
 
 static void process_input(sha256_message_t *sha256_message, uint8_t *message, size_t message_length)
@@ -124,7 +133,6 @@ static void padd_message(sha256_message_t *sha256_message)
 		memset(block_message, 0, SHA256_MESSAGE_BLOCK_SIZE * sizeof(uint8_t));
 		memcpy(block_message, sha256_message->message + (SHA256_MESSAGE_BLOCK_SIZE * last_block), block_bytes_to_padd * sizeof(uint8_t));
 		block_message[block_bytes_to_padd] = 0x80;
-
 		block_message[56] = (uint8_t)((sha256_message->bits_length >> 56) & 0xFF);
 		block_message[57] = (uint8_t)((sha256_message->bits_length >> 48) & 0xFF);
 		block_message[58] = (uint8_t)((sha256_message->bits_length >> 40) & 0xFF);
@@ -133,8 +141,12 @@ static void padd_message(sha256_message_t *sha256_message)
 		block_message[61] = (uint8_t)((sha256_message->bits_length >> 16) & 0xFF);
 		block_message[62] = (uint8_t)((sha256_message->bits_length >> 8) & 0xFF);
 		block_message[63] = (uint8_t)(sha256_message->bits_length & 0xFF);
-		uint8_t *ptr = (uint8_t *)realloc(sha256_message->message, sizeof(uint8_t) * (sha256_message->message_length + bytes_left));
-		sha256_message->message = ptr;
+
+		// for (size_t i = 0; i < SHA256_MESSAGE_BLOCK_SIZE; i++)
+		// {
+		// 	printf("%d=%02x\n",i, block_message[i]);
+		// }
+		sha256_message->message = (uint8_t *)realloc(sha256_message->message, sizeof(uint8_t) * (sha256_message->message_length + bytes_left));
 		memcpy(sha256_message->message + (SHA256_MESSAGE_BLOCK_SIZE * last_block), block_message, SHA256_MESSAGE_BLOCK_SIZE * sizeof(uint8_t));
 		sha256_message->last_block = last_block + 1;
 	}
@@ -168,6 +180,10 @@ void process_hash(SHA256_t_ctx *sha256_ctx, sha256_message_t *sha256_message)
 	for (uint32_t i = 0; i < sha256_message->last_block; i++)
 	{
 		memset(W, 0, SHA256_MESSAGE_BLOCK_SIZE * sizeof(uint32_t));
+		for (size_t i = 0; i < SHA256_MESSAGE_BLOCK_SIZE; i++)
+		{
+			printf("%d=%02x\n",i, sha256_message->message[i]);
+		}
 		prepare_W(W, sha256_message->message + (i * SHA256_MESSAGE_BLOCK_SIZE));
 		uint32_t T1;
 		uint32_t T2;
@@ -195,12 +211,12 @@ void process_hash(SHA256_t_ctx *sha256_ctx, sha256_message_t *sha256_message)
 		}
 		sha256_ctx->H[0] += a;
 		sha256_ctx->H[1] += b;
-		sha256_ctx->H[2] += c;
-		sha256_ctx->H[3] += d;
-		sha256_ctx->H[4] += e;
-		sha256_ctx->H[5] += f;
-		sha256_ctx->H[6] += g;
-		sha256_ctx->H[7] += h;
+		(sha256_ctx->H[2]) += c;
+		// sha256_ctx->H[3] += d;
+		// sha256_ctx->H[4] += e;
+		// sha256_ctx->H[5] += f;
+		// sha256_ctx->H[6] += g;
+		// sha256_ctx->H[7] += h;
 	}
 }
 
@@ -233,6 +249,40 @@ void hash_256(uint8_t *message, uint8_t digest[SHA256_MESSAGE_BLOCK_SIZE / 2], u
 	padd_message(&sha256_message);
 	process_hash(&context, &sha256_message);
 	from_32_to_8(context.H, digest, SHA256_MESSAGE_BLOCK_SIZE / 2);
+}
+
+void SHA256(SHA256_t_ctx *context)
+{
+	start_context_sha256(context);
+}
+
+void sha256_update(SHA256_t_ctx *context, uint8_t *message, uint64_t message_length)
+{
+	// Implementation to initialize the first message block into the context.
+	if (context->sha256_message.message == NULL || context->sha256_message.message_length == 0)
+	{
+		context->sha256_message.message = (uint8_t *)malloc(message_length * sizeof(uint8_t));
+		memcpy(context->sha256_message.message, message, message_length * sizeof(uint8_t));
+		context->sha256_message.message_length = message_length;
+		context->sha256_message.bits_length = message_length * 8;
+	}
+	else
+	{
+		context->sha256_message.message = realloc(context->sha256_message.message, context->sha256_message.message_length + message_length);
+		memcpy(context->sha256_message.message + context->sha256_message.message_length, message, message_length);
+		context->sha256_message.message_length += message_length;
+		context->sha256_message.bits_length = context->sha256_message.message_length * 8;
+	}
+}
+
+void sha256_digest(SHA256_t_ctx *context, uint8_t digest_output[SHA256_MESSAGE_BLOCK_SIZE / 2])
+{
+	padd_message(&context->sha256_message);
+	
+	// printf("%d\n", context->sha256_message.message_length);
+	// printf("%d\n", context->sha256_message.last_block);
+	process_hash(&context, &context->sha256_message);
+	// from_32_to_8(&context->H, digest_output, SHA256_MESSAGE_BLOCK_SIZE / 2);
 }
 
 #endif
