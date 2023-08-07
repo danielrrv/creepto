@@ -89,6 +89,7 @@ static uint32_t SSIG1(uint32_t x)
 	return ROTR(17, x) ^ ROTR(19, x) ^ (x >> 10);
 }
 
+// Initialize the message buffer at the moment the context is instaciate
 static void start_message_buffer(SHA256_t_ctx *context)
 {
 	context->sha256_message.last_block = 0;
@@ -97,6 +98,7 @@ static void start_message_buffer(SHA256_t_ctx *context)
 	context->sha256_message.message = NULL;
 }
 
+// Start the hash context.
 static void start_context_sha256(SHA256_t_ctx *context)
 {
 	context->message_block_index = 0;
@@ -111,6 +113,7 @@ static void start_context_sha256(SHA256_t_ctx *context)
 	start_message_buffer(context);
 }
 
+// Deprecated. it only considered just one message in the context.
 static void process_input(sha256_message_t *sha256_message, uint8_t *message, size_t message_length)
 {
 	sha256_message->message = (uint8_t *)malloc(sizeof(uint8_t) * message_length);
@@ -142,10 +145,7 @@ static void padd_message(sha256_message_t *sha256_message)
 		block_message[62] = (uint8_t)((sha256_message->bits_length >> 8) & 0xFF);
 		block_message[63] = (uint8_t)(sha256_message->bits_length & 0xFF);
 
-		// for (size_t i = 0; i < SHA256_MESSAGE_BLOCK_SIZE; i++)
-		// {
-		// 	printf("%d=%02x\n",i, block_message[i]);
-		// }
+	
 		sha256_message->message = (uint8_t *)realloc(sha256_message->message, sizeof(uint8_t) * (sha256_message->message_length + bytes_left));
 		memcpy(sha256_message->message + (SHA256_MESSAGE_BLOCK_SIZE * last_block), block_message, SHA256_MESSAGE_BLOCK_SIZE * sizeof(uint8_t));
 		sha256_message->last_block = last_block + 1;
@@ -216,9 +216,10 @@ void process_hash(SHA256_t_ctx *sha256_ctx, sha256_message_t *sha256_message)
 	}
 }
 
+// The algorithm generates contex.H[] of uint32_t. 
+// Initially there are 8 blocks of 32 bites. This function turns them into 32 blocks of 8 bits each.
 void from_32_to_8(uint32_t *in, uint8_t *out, uint64_t byte_length)
-{
-
+{	
 	for (size_t i = 0; i < byte_length / 4; i++)
 	{
 		out[(i * 4)] = (uint8_t)((in[i] >> 24) & 0xFF);
@@ -228,6 +229,7 @@ void from_32_to_8(uint32_t *in, uint8_t *out, uint64_t byte_length)
 	}
 }
 
+//Convert bytes uint8_t into hex encoding.
 void hex_to_char_buffer(uint8_t *in, uint8_t *out)
 {
 	for (size_t i = 0; i < SHA256_MESSAGE_BLOCK_SIZE / 2; i++)
@@ -236,6 +238,10 @@ void hex_to_char_buffer(uint8_t *in, uint8_t *out)
 	}
 }
 
+/// @brief Deprecated function
+/// @param message 
+/// @param digest 
+/// @param message_length 
 void hash_256(uint8_t *message, uint8_t digest[SHA256_MESSAGE_BLOCK_SIZE / 2], uint64_t message_length)
 {
 	sha256_message_t sha256_message;
@@ -247,11 +253,13 @@ void hash_256(uint8_t *message, uint8_t digest[SHA256_MESSAGE_BLOCK_SIZE / 2], u
 	from_32_to_8(context.H, digest, SHA256_MESSAGE_BLOCK_SIZE / 2);
 }
 
+// Start a hash context to keep track of the update & digest.
 void SHA256(SHA256_t_ctx *context)
 {
 	start_context_sha256(context);
 }
 
+// append message payloads(uint8_t *) to context's message.
 void sha256_update(SHA256_t_ctx *context, uint8_t *message, uint64_t message_length)
 {
 	// Implementation to initialize the first message block into the context.
@@ -271,11 +279,11 @@ void sha256_update(SHA256_t_ctx *context, uint8_t *message, uint64_t message_len
 	}
 }
 
+// Digests the context's message and compute the hash.
 void sha256_digest(SHA256_t_ctx *context, uint8_t digest_output[SHA256_MESSAGE_BLOCK_SIZE / 2])
 {
 	padd_message(&context->sha256_message);
 	process_hash(context, &context->sha256_message);
 	from_32_to_8(context->H, digest_output, SHA256_MESSAGE_BLOCK_SIZE / 2);
 }
-
 #endif
