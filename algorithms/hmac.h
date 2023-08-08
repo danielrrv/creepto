@@ -15,6 +15,13 @@ enum
 	B = 64
 };
 // H(K XOR opad, H(K XOR ipad, text))
+
+/// @brief Generate a hash-code based on a key and data.
+/// @param l_key 
+/// @param key_length 
+/// @param message 
+/// @param message_length 
+/// @param digest 
 void sha256_hmac(uint8_t *l_key, size_t key_length, uint8_t *message, size_t message_length, uint8_t digest[SHA256_MESSAGE_BLOCK_SIZE / 2])
 {
 	uint8_t *key = (uint8_t *)malloc(sizeof(uint8_t) * key_length);

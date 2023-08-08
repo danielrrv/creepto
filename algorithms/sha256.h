@@ -113,7 +113,10 @@ static void start_context_sha256(SHA256_t_ctx *context)
 	start_message_buffer(context);
 }
 
-// Deprecated. it only considered just one message in the context.
+/// @brief Deprecated. it only considered just one message in the context.
+/// @param sha256_message
+/// @param message
+/// @param message_length
 static void process_input(sha256_message_t *sha256_message, uint8_t *message, size_t message_length)
 {
 	sha256_message->message = (uint8_t *)malloc(sizeof(uint8_t) * message_length);
@@ -122,7 +125,8 @@ static void process_input(sha256_message_t *sha256_message, uint8_t *message, si
 	sha256_message->bits_length = message_length * 8;
 }
 
-// Message Padding and Parsing
+/// @brief essage padding
+/// @param sha256_message
 static void padd_message(sha256_message_t *sha256_message)
 {
 	uint32_t last_block = (sha256_message->message_length / SHA256_MESSAGE_BLOCK_SIZE);
@@ -145,20 +149,22 @@ static void padd_message(sha256_message_t *sha256_message)
 		block_message[62] = (uint8_t)((sha256_message->bits_length >> 8) & 0xFF);
 		block_message[63] = (uint8_t)(sha256_message->bits_length & 0xFF);
 
-	
 		sha256_message->message = (uint8_t *)realloc(sha256_message->message, sizeof(uint8_t) * (sha256_message->message_length + bytes_left));
 		memcpy(sha256_message->message + (SHA256_MESSAGE_BLOCK_SIZE * last_block), block_message, SHA256_MESSAGE_BLOCK_SIZE * sizeof(uint8_t));
 		sha256_message->last_block = last_block + 1;
 	}
 }
 
-//   1. Prepare the message schedule W:
-//      For t = 0 to 15
-//         Wt = M(i)t
-//      For t = 16 to 63
-//         Wt = SSIG1(W(t-2)) + W(t-7) + SSIG0(t-15) + W(t-16)
+/// @brief Preprate the blocks to be processed on hash function.
+/// @param W
+/// @param block_message
 static void prepare_W(uint32_t *W, uint8_t *block_message)
 {
+	//   1. Prepare the message schedule W:
+	//      For t = 0 to 15
+	//         Wt = M(i)t
+	//      For t = 16 to 63
+	//         Wt = SSIG1(W(t-2)) + W(t-7) + SSIG0(t-15) + W(t-16)
 	for (uint8_t t = 0; t < 16; t++)
 	{
 		W[t] = (uint32_t)block_message[t * 4] << 24;
@@ -174,6 +180,9 @@ static void prepare_W(uint32_t *W, uint8_t *block_message)
 	}
 }
 
+/// @brief Computes the hash based on message blocks.
+/// @param sha256_ctx
+/// @param sha256_message
 void process_hash(SHA256_t_ctx *sha256_ctx, sha256_message_t *sha256_message)
 {
 	uint32_t W[SHA256_MESSAGE_BLOCK_SIZE];
@@ -207,7 +216,7 @@ void process_hash(SHA256_t_ctx *sha256_ctx, sha256_message_t *sha256_message)
 		}
 		sha256_ctx->H[0] += a;
 		sha256_ctx->H[1] += b;
-		sha256_ctx->H[2]+=c;
+		sha256_ctx->H[2] += c;
 		sha256_ctx->H[3] += d;
 		sha256_ctx->H[4] += e;
 		sha256_ctx->H[5] += f;
@@ -216,10 +225,12 @@ void process_hash(SHA256_t_ctx *sha256_ctx, sha256_message_t *sha256_message)
 	}
 }
 
-// The algorithm generates contex.H[] of uint32_t. 
-// Initially there are 8 blocks of 32 bites. This function turns them into 32 blocks of 8 bits each.
+/// @brief turns 32 bits blocks into 8 bits each.
+/// @param in
+/// @param out
+/// @param byte_length
 void from_32_to_8(uint32_t *in, uint8_t *out, uint64_t byte_length)
-{	
+{
 	for (size_t i = 0; i < byte_length / 4; i++)
 	{
 		out[(i * 4)] = (uint8_t)((in[i] >> 24) & 0xFF);
@@ -229,7 +240,9 @@ void from_32_to_8(uint32_t *in, uint8_t *out, uint64_t byte_length)
 	}
 }
 
-//Convert bytes uint8_t into hex encoding.
+/// @brief Convert bytes uint8_t into hex encoding.
+/// @param in
+/// @param out
 void hex_to_char_buffer(uint8_t *in, uint8_t *out)
 {
 	for (size_t i = 0; i < SHA256_MESSAGE_BLOCK_SIZE / 2; i++)
@@ -239,9 +252,9 @@ void hex_to_char_buffer(uint8_t *in, uint8_t *out)
 }
 
 /// @brief Deprecated function
-/// @param message 
-/// @param digest 
-/// @param message_length 
+/// @param message
+/// @param digest
+/// @param message_length
 void hash_256(uint8_t *message, uint8_t digest[SHA256_MESSAGE_BLOCK_SIZE / 2], uint64_t message_length)
 {
 	sha256_message_t sha256_message;
@@ -259,7 +272,10 @@ void SHA256(SHA256_t_ctx *context)
 	start_context_sha256(context);
 }
 
-// append message payloads(uint8_t *) to context's message.
+/// @brief appends messages payloads(uint8_t *) to context's message.
+/// @param context
+/// @param message
+/// @param message_length
 void sha256_update(SHA256_t_ctx *context, uint8_t *message, uint64_t message_length)
 {
 	// Implementation to initialize the first message block into the context.
@@ -279,7 +295,9 @@ void sha256_update(SHA256_t_ctx *context, uint8_t *message, uint64_t message_len
 	}
 }
 
-// Digests the context's message and compute the hash.
+/// @brief Computes the hash function onto the messages blocks.
+/// @param context
+/// @param digest_output
 void sha256_digest(SHA256_t_ctx *context, uint8_t digest_output[SHA256_MESSAGE_BLOCK_SIZE / 2])
 {
 	padd_message(&context->sha256_message);
