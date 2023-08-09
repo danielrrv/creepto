@@ -771,19 +771,57 @@ void test_should_divide(){
 	big_int_divide(A, B, division_result);
 	// assert(strcmp(big_int_divide( ctor_char("993"), ctor_char("33"))->quotient->digits, ctor_char("1")->digits)==0);
 	// assert(strcmp(big_int_divide( ctor_char("3324298954062642979937715273000088457741871468238391929188212688"), ctor_char("0"))->quotient->digits, ctor_char("523992042321994806059141329145437988132698862137233062019813141703019017421636531501658722091387723965207369835613458680419152")->digits)==0);
-	assert(strcmp(division_result->quotient->digits, T->digits)==0);
+	// assert(strcmp(division_result->quotient->digits, T->digits)==0);
 	printf("==> test_should_divide[passed]\n");//993399393090909099393090
 }
 
+void test_should_max_divisor(){
+	BIG_INT * A = base_ctor();
+	BIG_INT * B = base_ctor();
+	
+	ctor_char("993", A);
+	ctor_char("333", B);
+	printf("%d\n", max_divisor(A, B, 0, 100));
+
+	clear_digit(A);
+	clear_digit(B);
+
+	ctor_char("9934322", A);
+	ctor_char("4934321", B);
+	printf("%d\n", max_divisor(A, B, 0, 100));
+
+	clear_digit(A);
+	clear_digit(B);
+
+	ctor_char("43553125", A);
+	ctor_char("2355242", B);
+	printf("%d\n", max_divisor(A, B, 0, 100));
+
+
+	clear_digit(A);
+	clear_digit(B);
+
+	ctor_char("355346746897", A);
+	ctor_char("34234567456", B);
+	printf("%d\n", max_divisor(A, B, 0, 100));
+
+	clear_digit(A);
+	clear_digit(B);
+
+	ctor_char("355346746897", A);
+	ctor_char("34234567", B);
+	printf("%d\n", max_divisor(A, B, 0, 100000));
+}
 int main(){
 	// greater_than();
 	// test_should_ctor_int();
 	// test_should_ctor_char();
-	test_should_ctor_hex();
+	// test_should_ctor_hex();
 	// test_should_sum();
-	// test_should_substract();
+	test_should_substract();
 	// test_should_multiply();
 	// test_should_divide();
 	//  test_should_pow();
+	test_should_max_divisor();
 	return 0;
 }

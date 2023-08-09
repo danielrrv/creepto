@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <cs50.h>
 
 // https://datatracker.ietf.org/doc/html/rfc4648
 
