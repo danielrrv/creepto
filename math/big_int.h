@@ -125,7 +125,7 @@ uint8_t invert_sign(uint8_t sign)
 }
 
 void clean_zero_in_front(BIG_INT *);
-static bool is_valid_hex_string(uint8_t *str, uint16_t len);
+static uint8_t is_valid_hex_string(uint8_t *str, uint16_t len);
 
 /**
  * @brief Simple BIG_INT constructor.  ->digits allocated memset(0)
@@ -254,7 +254,7 @@ void ctor_int(int number, BIG_INT *R)
  * @param hex
  * @param r
  */
-void ctor_hex(uint8_t *hex, BIG_INT *r)
+void ctor_hex(uint8_t * hex, BIG_INT *r)
 {
 
 	// Exception #1: hex shouldn't be null.
@@ -270,7 +270,9 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 	// Exception #2: Implementation to return fast in case the string character haven't started by [0x]
 	else
 	{
+		printf("Por aca!\n");
 		r = NULL;
+		printf("///%d\n",r == NULL);
 		return;
 	}
 
@@ -280,14 +282,16 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 		len++;
 	// Implementation to move back the pointer to the original position.
 	hex -= len + 1;
+	printf("%s\n", hex);
 
 	// Exception # 3: the characters must be alphanumeric from [0-9][aA-fF].
-	if (!is_valid_hex_string(hex, len))
+	if (is_valid_hex_string(hex, len) == 0x00)
 	{
+		printf("Por aqui!\n");
 		r = NULL;
+		printf("///%d\n",r == NULL);
 		return;
 	}
-
 	// What it is for: track the power result as intermidiate factor for the final multiplication later on.
 	BIG_INT *power = base_ctor();
 	// What it is for: track the decimal result which is the function pointer return.
@@ -300,15 +304,13 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 
 	// What it is for; track the final product of iteration.
 	BIG_INT *product = base_ctor();
-
 	ctor_char("0", decimal);
 	ctor_char("0", power);
 	ctor_char("16", sixteen);
 	ctor_char("1", product);
-
+	
 	for (size_t i = 0; 0 < len; i++, len--)
 	{
-
 		// Implementation to convert hexadecimal to decimal based on ascii code.
 		uint8_t _val = 0;
 		if (IS_DIGIT(hex[i]))
@@ -317,57 +319,50 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 		}
 		else if (hex[i] >= 'a' && hex[i] <= 'f')
 		{
-			_val = (*hex) - 97 + 10;
+			_val = hex[i] - 97 + 10;
 		}
 		else if (hex[i] >= 'A' && hex[i] <= 'F')
 		{
 			_val = hex[i] - 65 + 10;
 		}
+		#ifdef DEBUGCTORHEX
+			printf("i=%d\thex[i]=%c\tval=%d\t",i, hex[i],_val );
+		#endif
 		// Prevent data corruption and save the program to allocate new memory in each iteration.
 		clear_digit(val);
 		// Let's move _val into a BIG INT to over on BIG INT functions.
 		ctor_int(_val, val);
-#ifdef DEBUG
-		printf("i=%ld\tc=%c,_val=%d,val.digits=%s, val.length=%d\n", i, hex[i], _val, val->digits, val->length);
-#endif
 		// Prevent data corruption and save the program to allocate new memory in each iteration.
 		clear_digit(power);
 		clear_digit(length);
 		// Let's move len into a BIG INT to over on BIG INT functions.
 		ctor_int(len - 1, length);
-#ifdef DEBUG
-		printf("func=%s;i=%ld\tlength.digits=%s, length.length=%d\n", __FUNCTION__, i, length->digits, length->length);
-#endif
+
 
 		// Implementation to apply the first operation: 16^ length
 		big_int_power(sixteen, length, power);
 
-#ifdef DEBUG
-		printf("i=%ld\tpower.digits=%s, power.length=%d\n", i, power->digits, power->length);
-#endif
 
-#ifdef DEBUG
-		printf("i=%ld\tproduct.digits=%s, product.length=%d\n", i, product->digits, product->length);
-#endif
+
+
 		// Prevent data corruption and save the program to allocate new memory in each iteration.
 		clear_digit(product);
 		// Implementation to apply the second of the opetation: val * (16 ^ lengh)
 		big_int_multiply(val, power, product);
 
-#ifdef DEBUG
-		printf("i=%ld\tproduct.digits=%s, product.length=%d\n", i, product->digits, product->length);
-#endif
+
 		// Implementation to apply the third and last part of the operation: summing up the product to decimal and keep it up.
 		big_int_sum(decimal, product, decimal);
-#ifdef DEBUG
-		printf("i=%ld\tdecimal.digits=%s, decimal.length=%d\n", i, decimal->digits, decimal->length);
-#endif
+		// BIG_INT_COPY_FROM_TO(trailer, decimal);
+		#ifdef DEBUGCTORHEX
+			printf("%d * 16 ** %d\n", _val, len - 1);
+		#endif
 	}
 
 	// Finally move decimal to r.
 	BIG_INT_COPY_FROM_TO(decimal, r);
 
-#ifdef DEBUG3
+#ifdef DEBUGCTORHEX
 	printf("hex:%s, %s\n", hex, r->digits);
 #endif
 	free(decimal);
@@ -443,7 +438,7 @@ void big_int_sum(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 	uint8_t is_A_greater_than_B_abs = big_int_greater_than_abs(A, B) == 0x01;
 	for (i = 0; i < Blen || i < Alen || carry > 0; i++)
 	{
-#ifdef DEBUG
+#ifdef DEBUGSUM
 		printf("DEBUG[INPUT]: A'%d(%c) + B'%d(%c) + T'%d(%c)\n",
 			   A->digits[Alen - i - 1], A->digits[Alen - i - 1], B->digits[Blen - i - 1], B->digits[Blen - i - 1], carry + '0', carry + '0');
 #endif
@@ -481,17 +476,17 @@ void big_int_sum(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 		// Implementation to inser the digit ij the desired position. From back to front.
 		uint16_t index = insert_at(R, sum % 10 + '0', MAX_DIGIT_LENGHT - i - 1);
 
-#ifdef DEBUG
+#ifdef DEBUGSUM
 		printf("DEBUG[INSERTED1]: %d(%c)\t carry: %c\tindex:%d\n", (sum % 10) + '0', (sum % 10) + '0', carry + '0', index);
 #endif
 	}
 	// Implementation to advance the pointer because was filled from back to front.
 	BIG_INT *ptr = (BIG_INT *)(R->digits + (MAX_DIGIT_LENGHT - i - carry));
-	memcpy(R->digits, ptr, MAX_DIGIT_LENGHT - i - carry);
+	memcpy(R->digits, ptr,  i + carry);
 	R->length = i + carry;
 	// Implementation to decide the sign of the final BIG INT.
 	R->sign = is_A_greater_than_B_abs ? A->sign : B->sign;
-#ifdef DEBUG
+#ifdef DEBUGSUM
 	printf("big_int_sum([%s] + [%s]) = [%s]\n", A->digits, B->digits, R->digits);
 #endif
 }
@@ -1110,14 +1105,15 @@ void clean_zero_in_front(BIG_INT *big_int)
 	}
 }
 
-static bool is_valid_hex_string(uint8_t *str, uint16_t len)
+static uint8_t is_valid_hex_string(uint8_t *str, uint16_t len)
 {
 	for (int i = 0; i < len; i++)
 	{
-		if (0x01 ^ (IS_DIGIT(str[i]) | IS_HEXALPH(str[i])))
+		if (0x01 ^ (IS_DIGIT(str[i]) | IS_HEXALPH(str[i]))== 1)
 		{
-			return false;
+			printf("Invalid Hex\n");
+			return 0x00;
 		}
 	}
-	return true;
+	return 0x01;
 }
