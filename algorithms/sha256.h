@@ -288,7 +288,7 @@ void sha256_update(SHA256_t_ctx *context, uint8_t *message, uint64_t message_len
 	}
 	else
 	{
-		context->sha256_message.message = realloc(context->sha256_message.message, context->sha256_message.message_length + message_length);
+		context->sha256_message.message = (uint8_t *)realloc(context->sha256_message.message, context->sha256_message.message_length + message_length);
 		memcpy(context->sha256_message.message + context->sha256_message.message_length, message, message_length);
 		context->sha256_message.message_length += message_length;
 		context->sha256_message.bits_length = context->sha256_message.message_length * 8;
