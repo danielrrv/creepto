@@ -272,7 +272,6 @@ void ctor_hex(uint8_t * hex, BIG_INT *r)
 	{
 		printf("Por aca!\n");
 		r = NULL;
-		printf("///%d\n",r == NULL);
 		return;
 	}
 
@@ -287,9 +286,7 @@ void ctor_hex(uint8_t * hex, BIG_INT *r)
 	// Exception # 3: the characters must be alphanumeric from [0-9][aA-fF].
 	if (is_valid_hex_string(hex, len) == 0x00)
 	{
-		printf("Por aqui!\n");
 		r = NULL;
-		printf("///%d\n",r == NULL);
 		return;
 	}
 	// What it is for: track the power result as intermidiate factor for the final multiplication later on.
@@ -428,9 +425,6 @@ void ctor_long(long number, BIG_INT *R)
 
 void big_int_sum(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 {
-
-	// if (R==NULL)return;
-	// BIG_INT * value = base_ctor();
 	// DRY the length of the big integer.
 	uint32_t Blen = B->length, Alen = A->length, max_length = Blen > Alen ? Blen : Alen;
 	uint8_t carry = 0;
