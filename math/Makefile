@@ -2,7 +2,7 @@ CC = gcc
 
 
 division: big_int_test.c
-	$(CC) big_int_test.c -o big_int_test.o -D DIVISION_ONLY -DDEBUGDIVIDE && ./big_int_test.o
+	$(CC) big_int_test.c -o big_int_test.o -D DIVISION_ONLY && ./big_int_test.o
 
 division_debug: big_int_test.c
 	$(CC) big_int_test.c -o big_int_test.o -D DIVISION_ONLY -D DEBUGDIVIDE && ./big_int_test.o

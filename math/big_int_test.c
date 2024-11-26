@@ -775,22 +775,16 @@ void test_should_pow()
 
 void test_should_divide()
 {
-
+	
 	BIG_INT *A = base_ctor();
 	BIG_INT *B = base_ctor();
 	BIG_INT *T = base_ctor();
-	// "3866073348411803555498276"
-	// "33242989540626429799377"
-	// ctor_char("99339939309090909939309036434567534789534566322555599965352468877", A);
-	// ctor_char("33242989540626429799377", B);
-	ctor_char("421337", A);
-	ctor_char("3212", B);
-	// ctor_char("2988297402906169292640812071435105739322839", T);
-	// ctor_char("3324298954062642979937700000000000000000000000000000000000000000", T);
-	// "29"
-	// diff
-	// uint8_t * a = "82935269641274263521115736434567534789534566322555599965352468877n"
-	// Initialize a BIG_INT instance;
+
+	///Test #1:
+	ctor_char("99339939309090909939309036434567534789534566322555599965352468877", A);
+	ctor_char("33242989540626429799377", B);
+	ctor_char("2988297402906169292640812071435105739322839", T);
+	
 	division_result_t *division_result = (division_result_t *)malloc(sizeof(division_result_t));
 	division_result->quotient = base_ctor();
 	ctor_char("0", division_result->quotient);
@@ -799,51 +793,42 @@ void test_should_divide()
 	ctor_char("0", division_result->remaining);
 
 	big_int_divide(A, B, division_result);
-	// assert(strcmp(big_int_divide( ctor_char("993"), ctor_char("33"))->quotient->digits, ctor_char("1")->digits)==0);
-	// assert(strcmp(big_int_divide( ctor_char("3324298954062642979937715273000088457741871468238391929188212688"), ctor_char("0"))->quotient->digits, ctor_char("523992042321994806059141329145437988132698862137233062019813141703019017421636531501658722091387723965207369835613458680419152")->digits)==0);
-	// assert(strcmp(division_result->quotient->digits, T->digits)==0);
+
+	PRINT_BIG_INT(division_result->quotient);
+	assert(strncmp(division_result->quotient->digits, T->digits, T->length)==0);
+
+	big_int_reset(A);
+	big_int_reset(B);
+	big_int_reset(T);
+	big_int_reset(division_result->quotient);
+	big_int_reset(division_result->remaining);
+
+
+	///Test #2:
+	ctor_char("2989540626429799377152730000884577418714682383919291882126", A);
+	ctor_char("5774187146823839192918821268", B);
+	ctor_char("517742246728915256822471410944", T);
+	
+	
+	ctor_char("0", division_result->quotient);
+
+	division_result->remaining = base_ctor();
+	ctor_char("0", division_result->remaining);
+
+	big_int_divide(A, B, division_result);
+
+	PRINT_BIG_INT(division_result->quotient);
+	assert(strncmp(division_result->quotient->digits, T->digits, T->length)==0);
+
+	big_int_reset(A);
+	big_int_reset(B);
+	big_int_reset(T);
+	big_int_reset(division_result->quotient);
+	big_int_reset(division_result->remaining);
 	printf("==> test_should_divide[passed]\n"); // 993399393090909099393090
 }
 
-void test_should_max_divisor()
-{
-	BIG_INT *A = base_ctor();
-	BIG_INT *B = base_ctor();
 
-	ctor_char("1000", A);
-	ctor_char("500", B);
-
-	assert((max_divisor(A, B, 0, 1000) == 2));
-	big_int_reset(A);
-	big_int_reset(B);
-
-	// ctor_char("9934322", A);
-	// ctor_char("4934321", B);
-	// printf("%d\n", max_divisor(A, B, 0, 100));
-	// assert((max_divisor(A, B, 0, 100) == 2));
-	// big_int_reset(A);
-	// big_int_reset(B);
-
-	// ctor_char("43553125", A);
-	// ctor_char("2355242", B);
-	// printf("%d\n", max_divisor(A, B, 0, 100));
-
-	// big_int_reset(A);
-	// big_int_reset(B);
-
-	// ctor_char("355346746897", A);
-	// ctor_char("34234567456", B);
-	// printf("%d\n", max_divisor(A, B, 0, 100));
-
-	// big_int_reset(A);
-	// big_int_reset(B);
-
-	// ctor_char("355346746897", A);
-	// ctor_char("3000000000", B);
-	// printf("%d\n", max_divisor(A, B, 0, 1000));
-
-	printf("==> test_should_max_divisor[passed]\n");
-}
 
 void test_should_divide_by_2()
 {
@@ -864,7 +849,7 @@ void test_should_divide_by_2()
 	PRINT_BIG_INT(division_result->remaining);
 	assert(division_result->quotient->length == 2);
 	uint8_t cc[] = {'5', '3'};
-	assert(strncmp(division_result->quotient->digits,cc, 2)==0);
+	assert(strncmp(division_result->quotient->digits, cc, 2) == 0);
 
 	big_int_free(A);
 	big_int_free(division_result->quotient);
@@ -877,8 +862,9 @@ void test_should_factor_between_m_and_n()
 {
 	BIG_INT *A = base_ctor();
 	BIG_INT *B = base_ctor();
-	BIG_INT * ZERO = base_ctor();
-	BIG_INT * high= base_ctor();
+	BIG_INT *R = base_ctor();
+	BIG_INT *ZERO = base_ctor();
+	BIG_INT *high = base_ctor();
 	BIG_INT *factor = base_ctor();
 
 	ctor_char("121", A);
@@ -890,7 +876,7 @@ void test_should_factor_between_m_and_n()
 
 	PRINT_BIG_INT(factor);
 	uint8_t cc1[] = {'8'};
-	assert(strncmp(factor->digits, cc1, 1)==0);
+	assert(strncmp(factor->digits, cc1, 1) == 0);
 
 	big_int_reset(factor);
 	big_int_reset(A);
@@ -898,8 +884,7 @@ void test_should_factor_between_m_and_n()
 	big_int_reset(high);
 	big_int_reset(ZERO);
 
-
-	//Test 2
+	// Test 2
 	ctor_char("34", A);
 	ctor_char("5", B);
 	ctor_char("0", ZERO);
@@ -908,7 +893,25 @@ void test_should_factor_between_m_and_n()
 	big_int_factor_between_m_and_n(A, B, high, ZERO, factor);
 	PRINT_BIG_INT(factor);
 	uint8_t cc2[] = {'6'};
-	assert(strncmp(factor->digits, cc2, 1)==0);
+	assert(strncmp(factor->digits, cc2, 1) == 0);
+
+	big_int_reset(factor);
+	big_int_reset(A);
+	big_int_reset(B);
+	big_int_reset(high);
+	big_int_reset(ZERO);
+
+	// Test #3
+	ctor_char("99339939309090909939309036434567534789534566322555599965352468877", A);
+	ctor_char("33242989540626429799377", B);
+	ctor_char("2988297402906169292640812071435105739322839", R);
+	ctor_char("0", ZERO);
+
+	BIG_INT_COPY_FROM_TO(A, high);
+	big_int_factor_between_m_and_n(A, B, high, ZERO, factor);
+	PRINT_BIG_INT(factor);
+	uint8_t cc3[] = {'6'};
+	assert(strncmp(factor->digits, R->digits, R->length) == 0);
 
 	big_int_reset(factor);
 	big_int_reset(A);
@@ -924,10 +927,11 @@ void test_should_factor_between_m_and_n()
 	printf("==>  test_should_factor_between_m_and_n[passed]\n");
 };
 
-void test_should_mod(){
-	BIG_INT * A = base_ctor();
-	BIG_INT * B = base_ctor();
-	BIG_INT * R = base_ctor();
+void test_should_mod()
+{
+	BIG_INT *A = base_ctor();
+	BIG_INT *B = base_ctor();
+	BIG_INT *R = base_ctor();
 
 	ctor_char("2935269641274263521115736434567534789534566322555599965352468877", A);
 	ctor_char("33242989540626429799377", B);
@@ -939,7 +943,6 @@ void test_should_mod(){
 	big_int_reset(A);
 	big_int_reset(B);
 	big_int_reset(R);
-
 
 	ctor_char("110", A);
 	ctor_char("33", B);
@@ -982,7 +985,7 @@ int main()
 #endif
 
 #ifdef MOD
-	 test_should_mod();
+	test_should_mod();
 #endif
 	//  test_should_pow();
 	// test_should_max_divisor();

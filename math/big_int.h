@@ -19,6 +19,7 @@
 
 #define BIG_INT_IS_ZERO(big_int) (big_int->length == 1 && big_int->digits[0] == '0')
 #define BIG_INT_IS_ONE(big_int) (big_int->length == 1 && big_int->digits[0] == '1')
+#define BIG_INT_ARE_SAME(A, B) (A->length == B->length && strncmp(A->digits, B->digits, A->length) == 0)
 
 // Initialize less than 10 number. DO NOT USE this with number langer than 10.
 #define INITIALIZE_BIG_INT_TO(big_int, value, lenght)                  \
@@ -119,7 +120,6 @@ void big_int_root_square(BIG_INT *, BIG_INT *);
 void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R);
 int max_divisor(BIG_INT *A, BIG_INT *B, int low, int high);
 
-
 // Primitives
 static void add(uint8_t *sum, uint8_t a, uint8_t b, uint8_t *carry);
 static void substract(uint8_t *needs_borrow, uint8_t *substraction, uint8_t a, uint8_t b, uint8_t *carry);
@@ -130,6 +130,7 @@ static uint8_t apply_carry_if_apply(uint8_t *, uint8_t *);
 static void big_int_divide_by_2(BIG_INT *N, division_result_t *division_result);
 static void find_divisors(BIG_INT *number, BIG_INT *res);
 static bool is_odd(char c);
+static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high, BIG_INT *low, BIG_INT *factor);
 
 // uint8_t valid_integer_at()
 
@@ -774,14 +775,14 @@ void big_int_multiply(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 }
 
 /// @brief A divided by B.
-/// @param A
-/// @param B
+/// @param A numerator
+/// @param B divident
 /// @param division_result
 void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 {
-
+	
 	//![Exception # 1] Division by zero.
-	if (B->digits[0] == '0' && B->length == 1)
+	if (BIG_INT_IS_ZERO(B))
 	{
 		printf("Exception: Divinding by zero.\n");
 		division_result->quotient = base_ctor();
@@ -789,174 +790,53 @@ void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 		division_result->remaining = base_ctor();
 		ctor_char("0", division_result->remaining);
 		division_result->error = DIVISION_BY_ZERO;
-#ifdef DEBUG
-		printf("[%s] / [%s] = [%s]R%sE%d\n",
-			   A->digits, B->digits, division_result->quotient->digits, division_result->remaining->digits, division_result->error);
-#endif
+
 		// return division_result;
 	}
-	else if (big_int_greater_than_abs(A, B) == 0x00)
+	// Case: A and B are the same big_int. Return 1 then.
+	if (BIG_INT_ARE_SAME(A, B))
 	{
-		/*B is greater than A */
-		division_result->error = DIVISOR_GREATER_THAN_DIVIDEND;
-#ifdef DEBUG
-		printf("[%s] / [%s] = [%s]R%sE%d\n",
-			   A->digits, B->digits, division_result->quotient->digits, division_result->remaining->digits, division_result->error);
-#endif
-		// return division_result;
+		BIG_INT *one = base_ctor();
+		ctor_char("0", one);
+		BIG_INT_COPY_FROM_TO(one, division_result->quotient);
+		BIG_INT_COPY_FROM_TO(B, division_result->remaining);
+		free(one);
+		return;
 	}
-	else
+	// Case # A is not larger than B. Return zero.
+	if (big_int_greater_than_abs(A, B) == 0x00)
 	{
-		if (A->length == B->length)
-		{
-			// TODO: Create the case for it.
-			//  return division_result;
-			return;
-		}
-		if (A->length < B->length)
-		{
-			// TODO: return division_result;
-			return;
-		}
-		// [A is greater than B]
-		BIG_INT *possible_divisor = base_ctor();
-
-		BIG_INT *remainder = base_ctor();
-		BIG_INT *numerator = base_ctor();
-		BIG_INT *divisor = base_ctor();
-
-		BIG_INT *intermiate_multipled_diff = base_ctor();
-		BIG_INT *intermiate_diff = base_ctor();
-		// memcpy(numerator->digits, A->digits, B->length + 2);
-		// numerator->length = B->length + 2;
-		// BIG_INT_COPY_FROM_TO(numerator, intermiate_diff);
-
-		BIG_INT_COPY_FROM_TO(B, divisor);
-		/*Find the how many zeros to add.*/
-		size_t length_diff = A->length - B->length;
-
-		BIG_INT_COPY_FROM_TO(A, numerator);
-		memset(divisor->digits + divisor->length, '0', length_diff - 1);
-		divisor->length = divisor->length + (length_diff - 1);
-		printf("numerator=%s, len(numerator)=%d\n", numerator->digits, numerator->length);
-		printf("divisor=%s, len(divisor)=%d, digit_diff=%d \n", divisor->digits, divisor->length, length_diff);
-
-		// ctor_int(closest_max_divisor, divisor);
-		// big_int_multiply(divisor, BB, intermiate_multipled_diff);
-		// big_int_substract(numerator, intermiate_multipled_diff, intermiate_diff);
-		printf("\n\n");
-		while (big_int_greater_than(numerator, divisor) == 0x01 && length_diff--)
-		{
-			printf("Start::numerator=%s, len(numerator)=%d\n", numerator->digits, numerator->length);
-			printf("Start::divisor=%s, len(divisor)=%d \n", divisor->digits, divisor->length);
-
-			int closest_max_divisor = max_divisor(numerator, divisor, 0, 1000);
-			printf("closer_divisor = %d\n", closest_max_divisor);
-			ctor_int(closest_max_divisor, possible_divisor);
-#ifdef DEBUGDIVIDE
-			PRINT_BIG_INT(divisor);
-#endif
-
-			big_int_reset(intermiate_multipled_diff);
-			big_int_multiply(divisor, possible_divisor, intermiate_multipled_diff);
-#ifdef DEBUGDIVIDE
-			PRINT_BIG_INT(intermiate_multipled_diff);
-#endif
-			big_int_reset(intermiate_diff);
-			big_int_substract(numerator, intermiate_multipled_diff, intermiate_diff);
-#ifdef DEBUGDIVIDE
-			PRINT_BIG_INT(intermiate_diff);
-#endif
-			big_int_reset(numerator);
-			big_int_reset(possible_divisor);
-
-			BIG_INT_COPY_FROM_TO(intermiate_diff, numerator);
-
-			if (big_int_greater_than_abs(divisor, numerator) == 0x01)
-			{
-				division_result->remaining = numerator;
-				break;
-			}
-			else
-			{
-				int len_diff = (numerator->length - B->length);
-				assert(len_diff > 0);
-				big_int_reset(divisor);
-				BIG_INT_COPY_FROM_TO(B, divisor);
-				PRINT_BIG_INT(divisor);
-
-				// memset(divisor->digits +  divisor->length, '0', len_diff - 2);
-				// divisor->length = divisor->length + (len_diff - 2);
-
-				// printf("End::");
-				// PRINT_BIG_INT(numerator);
-				// printf("End::");
-				// PRINT_BIG_INT(divisor);
-
-				// printf("\n");
-			}
-		}
-		printf("\n");
-
-		// int closest_max_divisor = max_divisor(intermiate_diff, BB, 0, 100);
-		// printf("????%d\n", TO_BOOL(big_int_greater_than_abs(BB, intermiate_diff)));
-		// while(TO_BOOL(big_int_greater_than_abs(intermiate_diff, BB)))
-		// {
-		// 	#ifdef DEBUGDIVIDE
-		// 		printf("Start::intermiate_diff=%s\tBB=%s\n", intermiate_diff->digits,BB->digits);
-		// 	#endif
-		// 	assert (big_int_greater_than(intermiate_diff, BB) == 0x01);
-		// 	int closest_max_divisor = max_divisor(intermiate_diff, BB, 0, 1000);
-		// 	// printf("%d\n", closest_max_divisor);
-		// 	ctor_int(closest_max_divisor, divisor);
-		// 	big_int_multiply(divisor, BB, intermiate_multipled_diff);
-		// 	big_int_substract(intermiate_diff, intermiate_multipled_diff, intermiate_diff);
-		// 	#ifdef DEBUGDIVIDE
-		// 		printf("Middle:: intermiate_diff=%s\tBB=%s\tBB->length=%d\tintermiate_diff=%d\t%d\n", intermiate_diff->digits,BB->digits, BB->length,  intermiate_diff->length, closest_max_divisor);
-		// 	#endif
-		// 	if(TO_BOOL(big_int_greater_than_abs(BB, intermiate_diff)) && length_diff > 0){
-
-		// 		memcpy(intermiate_diff->digits + intermiate_diff->length + 1, A->digits + intermiate_diff->length, sizeof(uint8_t) * 2);
-		// 		intermiate_diff->length = intermiate_diff->length + sizeof(uint8_t) * 2;
-		// 		length_diff -= 2;
-		// 		#ifdef DEBUGDIVIDE
-		// 			printf("NeededDigits:: intermiate_diff=%s\tlen(intermiate_diff)=%d\n", intermiate_diff->digits,intermiate_diff->length);
-		// 		#endif
-		// 	}
-		// 	assert (big_int_greater_than(intermiate_diff, BB)==0x01);
-		// 	#ifdef DEBUGDIVIDE
-		// 		printf("End:: intermiate_diff=%s\tBB=%s\n", intermiate_diff->digits,BB->digits);
-		// 	#endif
-		// 	printf("\n");
-		// }
-		// 29 88 297 40 290 61 69 292 64 0 81 207 143 51 0 57 39 32 283 9n
-		free(remainder);
-		free(numerator);
-		free(divisor);
-		free(intermiate_multipled_diff);
-		free(intermiate_diff);
-		// do
-		// {
-		// int closest_max_divisor = max_divisor(numerator, BB, 0, 100);
-		// ctor_int(closest_max_divisor, divisor);
-		// big_int_multiply(divisor, BB , intermiate_multipled_diff);
-		// big_int_substract(numerator, intermiate_multipled_diff, intermiate_diff);
-
-		// } while (length_diff--);
-
-		// /* Adds the zeros - 1 to the back of the numbers */
-		// BB->digits = (uint8_t *)realloc(BB->digits, BB->length + length_diff - 1);
-		// memset(BB->digits + BB->length, '0', length_diff - 1);
-		// BB->length += length_diff - 1;
-		// printf("digits=%s\tlen(BB)=%d\tlen(A)=%d\n", BB->digits, BB->length, A->length);
-
-		// int closest_max_divisor = max_divisor(A, BB, 0, 100);
-		// printf("max_divisor = %d\n", closest_max_divisor);
+		BIG_INT *zero = base_ctor();
+		ctor_char("0", zero);
+		BIG_INT_COPY_FROM_TO(zero, division_result->quotient);
+		BIG_INT_COPY_FROM_TO(B, division_result->remaining);
+		free(zero);
+		return;
 	}
-#ifdef DEBUGDIVIDE
+	// printf("HEHE!....\n");
+	// high
+	BIG_INT *high = base_ctor();
+	BIG_INT_COPY_FROM_TO(A, high);
+	// Low
+	BIG_INT *low = base_ctor();
+	ctor_char("0", low);
+	BIG_INT *factor = base_ctor();
+	// printf("HEHE!....\n");
+	// PRINT_BIG_INT(high);
+	// PRINT_BIG_INT(low);
+	big_int_factor_between_m_and_n(A, B, high, low, factor);
+	
+	BIG_INT *factor_x_A = base_ctor();
+	BIG_INT *diff = base_ctor();
+	big_int_multiply(factor, A, factor_x_A);
+	big_int_substract(B, factor_x_A, diff);
+	BIG_INT_COPY_FROM_TO(factor, division_result->quotient);
+	BIG_INT_COPY_FROM_TO(diff, division_result->remaining);
 
-#endif
-	// return division_result;
+	free(factor);
+	free(factor_x_A);
+	free(high);
+	free(low);
 }
 
 /**
@@ -1160,17 +1040,23 @@ static void big_int_divide_by_2(BIG_INT *N, division_result_t *division_result)
 }
 /**
  * @brief finds the closer factor so that M > Factor * N > M - N.
- * This utility function serves to find the mod(M, N) 
+ * This utility function serves to find the mod(M, N)
  * since mod(M, N) =  M - Factor * N where  (M - Factor * N) < N
- * @param M 
- * @param N 
- * @param high 
+ * @param M
+ * @param N
+ * @param high
  * @param low
- * @param factor 
+ * @param factor
  */
 static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high, BIG_INT *low, BIG_INT *factor)
 {
-	
+	#ifdef DEBUG_FACTOR
+	PRINT_BIG_INT(M);
+	PRINT_BIG_INT(N);
+	PRINT_BIG_INT(high);
+	PRINT_BIG_INT(low);
+	#endif
+
 	BIG_INT *ONE = base_ctor();
 	ctor_char("1", ONE);
 	// difference between max value of factor and min value of factor.
@@ -1187,25 +1073,25 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 	// Implementation to obtain the range of values of factor.
 	big_int_substract(high, low, range);
 
-	//Container for storing the division result.
+	// Container for storing the division result.
 	division_result_t *division_result;
 
 	DIVISION_RESULT_FACTORY(division_result);
 
 	big_int_divide_by_2(range, division_result);
-	//Clear before setting it again.
+	// Clear before setting it again.
 	big_int_reset(factor);
-	// Implementation to calculate the factor considering the lower limit. 
-	//Being factor + lower_limit. For instance high=14, low=2 quotient=5, then factor =7  
+	// Implementation to calculate the factor considering the lower limit.
+	// Being factor + lower_limit. For instance high=14, low=2 quotient=5, then factor =7
 	big_int_sum(division_result->quotient, low, factor);
 	// Implementation to obtain the factor x N.
 	big_int_multiply(N, factor, factor_x_N);
 	/**
-	 * Mathematical prove of getting the closer factor of M based on N. 
+	 * Mathematical prove of getting the closer factor of M based on N.
 	 * Factor * N  > (M - N)
 	 *  M > F * N > M - N
-	 * 
-	*/
+	 *
+	 */
 	if (big_int_greater_than_abs(factor_x_N, diff_M_minus_N) == 0x01 && big_int_greater_than_abs(M, factor_x_N) == 0x01)
 	{
 		{
@@ -1218,7 +1104,7 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 	}
 	else
 	{
-		//Binary search of the factor that fulfills the mathematical inference.
+		// Binary search of the factor that fulfills the mathematical inference.
 		if (big_int_greater_than_abs(factor_x_N, M) == 0x01)
 		{
 
@@ -1240,7 +1126,7 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 		}
 		else
 		{
-		
+
 			BIG_INT *tmp = base_ctor();
 			BIG_INT_COPY_FROM_TO(factor, tmp);
 			big_int_reset(low);
@@ -1481,14 +1367,13 @@ static void find_divisors(BIG_INT *N, BIG_INT *R)
 	}
 }
 
-
 /**
  * @brief mod of M % N
  * @param M
  * @param N
  * @param R
- * 
-*/
+ *
+ */
 void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R)
 {
 	// When M % N and N larger than M then, M % N is M.
@@ -1508,12 +1393,12 @@ void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R)
 	big_int_factor_between_m_and_n(M, N, high, low, factor);
 	PRINT_BIG_INT(factor);
 
-	BIG_INT * factor_x_N = base_ctor();
+	BIG_INT *factor_x_N = base_ctor();
 	big_int_multiply(N, factor, factor_x_N);
 
-	BIG_INT * diff_with_M = base_ctor();
-	big_int_substract(M,factor_x_N, diff_with_M);
-	
+	BIG_INT *diff_with_M = base_ctor();
+	big_int_substract(M, factor_x_N, diff_with_M);
+
 	BIG_INT_COPY_FROM_TO(diff_with_M, R);
 
 	free(factor);
@@ -1534,4 +1419,3 @@ static bool is_odd(char c)
 			c == '6' ||
 			c == '8');
 }
-
