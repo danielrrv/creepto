@@ -129,8 +129,7 @@ static uint8_t apply_borrowing_if_apply(uint8_t *, uint8_t, uint8_t, const uint8
 static uint8_t primitive_sum(uint8_t, uint8_t, uint8_t);
 static uint8_t apply_carry_if_apply(uint8_t *, uint8_t *);
 static void big_int_divide_by_2(BIG_INT *N, division_result_t *division_result);
-static void find_divisors(BIG_INT *number, BIG_INT *res);
-static bool is_odd(char c);
+static bool is_even(char c);
 static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high, BIG_INT *low, BIG_INT *factor);
 
 // uint8_t valid_integer_at()
@@ -814,7 +813,7 @@ void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 		free(zero);
 		return;
 	}
-	// printf("HEHE!....\n");
+
 	// high
 	BIG_INT *high = base_ctor();
 	BIG_INT_COPY_FROM_TO(A, high);
@@ -822,9 +821,7 @@ void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 	BIG_INT *low = base_ctor();
 	ctor_char("0", low);
 	BIG_INT *factor = base_ctor();
-	// printf("HEHE!....\n");
-	// PRINT_BIG_INT(high);
-	// PRINT_BIG_INT(low);
+
 	big_int_factor_between_m_and_n(A, B, high, low, factor);
 
 	BIG_INT *factor_x_A = base_ctor();
@@ -970,7 +967,7 @@ void big_int_power(BIG_INT *a, BIG_INT *x, BIG_INT *R)
 static void big_int_divide_by_2(BIG_INT *N, division_result_t *division_result)
 {
 
-	if (is_odd(N->digits[N->length - 1]))
+	if (is_even(N->digits[N->length - 1]))
 	{
 
 		uint8_t carry = 0;
@@ -1339,34 +1336,6 @@ static uint8_t is_valid_hex_string(uint8_t *str, uint16_t len)
 	return 0x01;
 }
 
-static void find_divisors(BIG_INT *N, BIG_INT *R)
-{
-
-	BIG_INT *remainder = base_ctor();
-	ctor_char("0", remainder);
-
-	BIG_INT *divisor = base_ctor();
-	ctor_char("1", divisor);
-
-	BIG_INT *possible_divisor = base_ctor();
-	ctor_char("1", possible_divisor);
-
-	// High
-	// BIG_INT * high = base_ctor();
-	// char * cc = malloc(N->length - 1 * sizeof(uint8_t) + 1);
-	// cc[0] = '5';
-	// memset(cc + 1, '0', N->length - 1);
-	// ctor_char(cc, high);
-
-	// //Low
-	// BIG_INT * low = base_ctor();
-	// ctor_char("0", low);
-
-	while (big_int_greater_than_abs(N, divisor) == 0x01)
-	{
-		// big_int_multiply(divisor, );
-	}
-}
 
 /**
  * @brief mod of M % N
@@ -1435,7 +1404,7 @@ void big_int_gcd(BIG_INT *A, BIG_INT *B, BIG_INT *R)
  * @param c
  *
  */
-static bool is_odd(char c)
+static bool is_even(char c)
 {
 	return (c == '0' ||
 			c == '2' ||
