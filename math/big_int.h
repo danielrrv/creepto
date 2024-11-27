@@ -119,7 +119,6 @@ void big_int_power(BIG_INT *a, BIG_INT *x, BIG_INT *);
 void big_int_root_square(BIG_INT *, BIG_INT *);
 void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R);
 void big_int_gcd(BIG_INT *, BIG_INT *, BIG_INT *);
-int max_divisor(BIG_INT *A, BIG_INT *B, int low, int high);
 
 // Primitives
 static void add(uint8_t *sum, uint8_t a, uint8_t b, uint8_t *carry);
@@ -837,50 +836,7 @@ void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 	free(low);
 }
 
-/**
- * @brief Find the maximum divisor. Recursive function.
- * @since 08/08/2023
- * @param A numerator
- * @param B possible divisior
- * @return int mid
- */
-int max_divisor(BIG_INT *A, BIG_INT *B, int low, int high)
-{
-	BIG_INT *D = base_ctor();
-	BIG_INT *C = base_ctor();
-	BIG_INT *BI_mid = base_ctor();
 
-	int mid = (high + low) / 2;
-
-	ctor_int(mid, BI_mid);
-	big_int_multiply(B, BI_mid, C);
-
-	big_int_substract(A, C, D);
-
-#ifdef DEBUG_MAX_DIVISOR
-	printf("h=%d\tl=%d\tA=%s\tB=%s\tC=%s\tD=%s\tmid=%d\n", high, low, A->digits, B->digits, C->digits, D->digits, mid);
-#endif
-	// Base case
-	if (big_int_greater_than_abs(B, D) == 0x01 && big_int_greater_than_abs(C, A) == 0x00)
-	{
-		return mid;
-	}
-
-	if (big_int_greater_than_abs(C, A) == 0x01)
-	{
-		free(BI_mid);
-		free(C);
-		free(D);
-		return max_divisor(A, B, low, mid - 1);
-	}
-	else
-	{
-		free(BI_mid);
-		free(C);
-		free(D);
-		return max_divisor(A, B, mid + 1, high);
-	}
-}
 
 /**
  * @brief BIG_INT a power  BIG_INT x

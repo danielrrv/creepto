@@ -991,9 +991,6 @@ int main()
 #ifdef SUBSTRACT
 	test_should_substract();
 #endif
-#ifdef MAX_COMMON_DIVISION_ONLY
-	test_should_max_divisor();
-#endif
 #ifdef MULTIPLY_ONLY
 	test_should_multiply();
 #endif
@@ -1017,9 +1014,6 @@ int main()
 #endif
 #ifdef POW_ONLY
 	test_should_pow();
-#endif
-#ifdef MAX_DIVISOR
-	test_should_max_divisor();
 #endif
 	return 0;
 }
