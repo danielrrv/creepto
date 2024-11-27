@@ -118,6 +118,7 @@ void big_int_modulo(BIG_INT *n, BIG_INT *m);
 void big_int_power(BIG_INT *a, BIG_INT *x, BIG_INT *);
 void big_int_root_square(BIG_INT *, BIG_INT *);
 void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R);
+void big_int_gcd(BIG_INT *, BIG_INT *, BIG_INT *);
 int max_divisor(BIG_INT *A, BIG_INT *B, int low, int high);
 
 // Primitives
@@ -279,7 +280,7 @@ void ctor_int(int number, BIG_INT *R)
 #endif
 }
 /**
- * @brief convert a hex big number represented by array of bytes
+ * @brief convert a hex to big number represented by array of bytes
  *
  * 0x4A8F62D431BA5F12D4704ACF25D4214A5F22D4502D4204A5F22D2D4204E5B26A4A5F2E5F12D4404
  *
@@ -302,7 +303,6 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 	// Exception #2: Implementation to return fast in case the string character haven't started by [0x]
 	else
 	{
-		printf("Por aca!\n");
 		r = NULL;
 		printf("///%d\n", r == NULL);
 		return;
@@ -339,7 +339,7 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 	ctor_char("0", power);
 	ctor_char("16", sixteen);
 	ctor_char("1", product);
-
+	// Each digit of the hex array it is a value for the computation.
 	for (size_t i = 0; 0 < len; i++, len--)
 	{
 		// Implementation to convert hexadecimal to decimal based on ascii code.
@@ -397,6 +397,7 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 	free(product);
 }
 
+//To deprecate.
 void toString(int number, uint8_t *str)
 {
 	if (str == NULL)
@@ -780,7 +781,7 @@ void big_int_multiply(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 /// @param division_result
 void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 {
-	
+
 	//![Exception # 1] Division by zero.
 	if (BIG_INT_IS_ZERO(B))
 	{
@@ -825,7 +826,7 @@ void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 	// PRINT_BIG_INT(high);
 	// PRINT_BIG_INT(low);
 	big_int_factor_between_m_and_n(A, B, high, low, factor);
-	
+
 	BIG_INT *factor_x_A = base_ctor();
 	BIG_INT *diff = base_ctor();
 	big_int_multiply(factor, A, factor_x_A);
@@ -1050,12 +1051,12 @@ static void big_int_divide_by_2(BIG_INT *N, division_result_t *division_result)
  */
 static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high, BIG_INT *low, BIG_INT *factor)
 {
-	#ifdef DEBUG_FACTOR
+#ifdef DEBUG_FACTOR
 	PRINT_BIG_INT(M);
 	PRINT_BIG_INT(N);
 	PRINT_BIG_INT(high);
 	PRINT_BIG_INT(low);
-	#endif
+#endif
 
 	BIG_INT *ONE = base_ctor();
 	ctor_char("1", ONE);
@@ -1391,7 +1392,7 @@ void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R)
 
 	BIG_INT *factor = base_ctor();
 	big_int_factor_between_m_and_n(M, N, high, low, factor);
-	PRINT_BIG_INT(factor);
+	// PRINT_BIG_INT(factor);
 
 	BIG_INT *factor_x_N = base_ctor();
 	big_int_multiply(N, factor, factor_x_N);
@@ -1404,6 +1405,29 @@ void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R)
 	free(factor);
 	free(factor_x_N);
 	free(diff_with_M);
+}
+
+void big_int_gcd(BIG_INT *A, BIG_INT *B, BIG_INT *R)
+{
+	while (BIG_INT_IS_ZERO(A))
+	{
+		// PRINT_BIG_INT(B);
+		BIG_INT *modulus_of_B_and_A = base_ctor();
+		big_int_mod(B, A,modulus_of_B_and_A);
+	
+		big_int_reset(A);
+		
+		BIG_INT_COPY_FROM_TO(A, B);
+		
+		big_int_reset(B);
+		// PRINT_BIG_INT(modulus_of_A_and_B);
+		BIG_INT_COPY_FROM_TO(modulus_of_B_and_A, A);
+		
+		free(modulus_of_B_and_A);
+	}
+
+	BIG_INT_COPY_FROM_TO(A, R);
+	return;
 }
 
 /**

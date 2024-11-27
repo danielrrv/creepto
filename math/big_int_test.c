@@ -775,16 +775,16 @@ void test_should_pow()
 
 void test_should_divide()
 {
-	
+
 	BIG_INT *A = base_ctor();
 	BIG_INT *B = base_ctor();
 	BIG_INT *T = base_ctor();
 
-	///Test #1:
+	/// Test #1:
 	ctor_char("99339939309090909939309036434567534789534566322555599965352468877", A);
 	ctor_char("33242989540626429799377", B);
 	ctor_char("2988297402906169292640812071435105739322839", T);
-	
+
 	division_result_t *division_result = (division_result_t *)malloc(sizeof(division_result_t));
 	division_result->quotient = base_ctor();
 	ctor_char("0", division_result->quotient);
@@ -795,7 +795,7 @@ void test_should_divide()
 	big_int_divide(A, B, division_result);
 
 	PRINT_BIG_INT(division_result->quotient);
-	assert(strncmp(division_result->quotient->digits, T->digits, T->length)==0);
+	assert(strncmp(division_result->quotient->digits, T->digits, T->length) == 0);
 
 	big_int_reset(A);
 	big_int_reset(B);
@@ -803,13 +803,11 @@ void test_should_divide()
 	big_int_reset(division_result->quotient);
 	big_int_reset(division_result->remaining);
 
-
-	///Test #2:
+	/// Test #2:
 	ctor_char("2989540626429799377152730000884577418714682383919291882126", A);
 	ctor_char("5774187146823839192918821268", B);
 	ctor_char("517742246728915256822471410944", T);
-	
-	
+
 	ctor_char("0", division_result->quotient);
 
 	division_result->remaining = base_ctor();
@@ -818,7 +816,7 @@ void test_should_divide()
 	big_int_divide(A, B, division_result);
 
 	PRINT_BIG_INT(division_result->quotient);
-	assert(strncmp(division_result->quotient->digits, T->digits, T->length)==0);
+	assert(strncmp(division_result->quotient->digits, T->digits, T->length) == 0);
 
 	big_int_reset(A);
 	big_int_reset(B);
@@ -827,8 +825,6 @@ void test_should_divide()
 	big_int_reset(division_result->remaining);
 	printf("==> test_should_divide[passed]\n"); // 993399393090909099393090
 }
-
-
 
 void test_should_divide_by_2()
 {
@@ -956,17 +952,45 @@ void test_should_mod()
 	free(B);
 }
 
+void test_should_big_int_gcd()
+{
+	BIG_INT *A = base_ctor();
+	BIG_INT *B = base_ctor();
+	BIG_INT *R = base_ctor();
+
+	ctor_char("2935269641274263521115736434567534789534566322555599965352468877", A);
+	ctor_char("33242989540626429799377", B);
+
+	big_int_gcd(A, B, R);
+
+	PRINT_BIG_INT(R);
+
+	free(R);
+	free(A);
+	free(B);
+}
+
 int main()
 {
-// "332429895406264297993770000000000000000000000000000000000000000"
-// "2935269641274263521115736434567534789534566322555599965352468877"
 
-// greater_than();
-// test_should_ctor_int();
-// test_should_ctor_char();
-// test_should_ctor_hex();
-// test_should_sum();
-// test_should_substract();
+#ifdef GREATER_THAN_ONLY
+	greater_than();
+#endif
+#ifdef CTOR_INT_ONLY
+	test_should_ctor_int();
+#endif
+#ifdef CTOR_CHAR_ONLY
+	test_should_ctor_char();
+#endif
+#ifdef HEX_ONLY
+	test_should_ctor_hex();
+#endif
+#ifdef SUM_ONLY
+	test_should_sum();
+#endif
+#ifdef SUBSTRACT
+	test_should_substract();
+#endif
 #ifdef MAX_COMMON_DIVISION_ONLY
 	test_should_max_divisor();
 #endif
@@ -987,7 +1011,15 @@ int main()
 #ifdef MOD
 	test_should_mod();
 #endif
-	//  test_should_pow();
-	// test_should_max_divisor();
+
+#ifdef GCD
+	test_should_big_int_gcd();
+#endif
+#ifdef POW_ONLY
+	test_should_pow();
+#endif
+#ifdef MAX_DIVISOR
+	test_should_max_divisor();
+#endif
 	return 0;
 }

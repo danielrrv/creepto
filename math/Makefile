@@ -16,5 +16,7 @@ factor: big_int_test.c
 	$(CC) big_int_test.c -o big_int_test.o -DFACTOR && ./big_int_test.o
 mod: big_int_test.c
 	$(CC) big_int_test.c -o big_int_test.o -DMOD && ./big_int_test.o
+gcd: big_int_test.c
+	$(CC) big_int_test.c -o big_int_test.o -DGCD && ./big_int_test.o
 clean:
 	rm big_int_test.o
