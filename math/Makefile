@@ -1,9 +1,12 @@
 CC = gcc
 
-
+utils=-I ../utils
+substract:  big_int_test.c
+	$(CC) big_int_test.c $(utils) -o big_int_test.o -DSUBSTRACT  && ./big_int_test.o	
+ctor_binary: big_int_test.c
+	$(CC) big_int_test.c $(utils) -o big_int_test.o -DCTOR_BINARY -DDEBUG_CTOR_BINARY  && ./big_int_test.o
 division: big_int_test.c
 	$(CC) big_int_test.c -o big_int_test.o -D DIVISION_ONLY && ./big_int_test.o
-
 division_debug: big_int_test.c
 	$(CC) big_int_test.c -o big_int_test.o -D DIVISION_ONLY -D DEBUGDIVIDE && ./big_int_test.o
 

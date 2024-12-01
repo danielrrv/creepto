@@ -126,6 +126,20 @@ void test_should_ctor_hex()
 
 	free(bg_hex);
 }
+
+void test_should_ctor_binary()
+{
+	BIG_INT *bg_binary = base_ctor();
+	uint8_t bits[] = "10100101110110010010011001110110101110110010101001001011101";
+	ctor_binary(bits, bg_binary);
+
+	printf("==> test_should_ctor_binary[passed]\n");
+
+	// free(bg_hex);
+	free(bg_binary);
+}
+
+
 void test_should_sum()
 {
 	BIG_INT *A = base_ctor();
@@ -372,9 +386,9 @@ void test_should_substract()
 	big_int_reset(T);
 	big_int_reset(R);
 
-	ctor_char("1", A);
-	ctor_char("1", B);
-	ctor_char("0", T);
+	ctor_char("10", A);
+	ctor_char("0", B);
+	ctor_char("10", T);
 	big_int_substract(A, B, R);
 	assert(strcmp(R->digits, T->digits) == 0);
 	big_int_reset(A);
@@ -991,6 +1005,9 @@ int main()
 #endif
 #ifdef CTOR_CHAR_ONLY
 	test_should_ctor_char();
+#endif
+#ifdef CTOR_BINARY
+	test_should_ctor_binary();
 #endif
 #ifdef HEX_ONLY
 	test_should_ctor_hex();

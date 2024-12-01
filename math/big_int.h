@@ -89,6 +89,7 @@ void ctor_char(char *, BIG_INT *);
 void ctor_int(int, BIG_INT *);
 void ctor_long(long, BIG_INT *);
 void ctor_hex(uint8_t *, BIG_INT *);
+void ctor_binary(uint8_t *, BIG_INT *);
 void big_int_reset(BIG_INT *);
 void big_int_free(BIG_INT *);
 
@@ -268,7 +269,6 @@ void ctor_int(int number, BIG_INT *R)
 	{
 		r->digits[MAX_DIGIT_LENGHT - 1] = number % 10 + '0';
 		r->length = 1;
-		// i++;
 	}
 	r->digits = r->digits + (MAX_DIGIT_LENGHT - i - 1);
 
@@ -295,7 +295,7 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 		r = NULL;
 		return;
 	}
-	
+
 	// Implementation to discard and the first 2 characters of hex validation.
 	if (*hex == '0' && (hex[1] == 'x' || hex[1] == 'X'))
 		hex += 2;
@@ -396,38 +396,117 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 	free(product);
 }
 
-// To deprecate.
-void toString(int number, uint8_t *str)
-{
-	if (str == NULL)
-		return;
 
-	int i = 0;
-	if (number > 10)
+/**
+ * @brief construct a big integer from array of bits.
+ * @param bits
+ * @param r
+ * 
+*/
+void ctor_binary(uint8_t *bits, BIG_INT *r)
+{
+	uint8_t const BITS[] = {'0', '1'};
+
+	uint16_t len;
+	while (*(bits++) != '\0')
+		len++;
+	// Implementation to move back the pointer to the original position.
+	bits -= len + 1;
+
+	// What it is for: tracks the final sum of the number.
+	BIG_INT *sum = base_ctor();
+	// What it is for; track the final product of iteration.
+	BIG_INT *product = base_ctor();
+	// What is it for; track the power of iteration.
+	BIG_INT *power = base_ctor();
+	// What is it for; track iteration index.
+	BIG_INT *iterator = base_ctor();
+	// What is it for; track the length of bits as big_int.
+	BIG_INT *length = base_ctor();
+	// What is it for; track the length of bits as big_int.
+	BIG_INT *difference_n_minus_iterator = base_ctor();
+	BIG_INT *difference_n_minus_iterator_minus_one = base_ctor();
+	// What is it for: track the current value of the iteration.
+	BIG_INT *current_value = base_ctor();
+	// 2 as big_int.
+	BIG_INT *two = base_ctor();
+	// 1 as big_int.
+	BIG_INT *one = base_ctor();
+
+	ctor_char("1", power);
+	ctor_char("0", sum);
+	ctor_char("1", product);
+	ctor_char("0", iterator);
+	ctor_int(len, length);
+	ctor_char("0", current_value);
+	ctor_char("2", two);
+	ctor_char("1", one);
+
+
+	for (size_t i = 0; i < len; i++)
 	{
-		while ((number / 10) != 0)
-		{
-			int mod = number % 10;
-			number -= mod;
-			if ((number % 10) == 0)
-			{
-				number /= 10;
-			}
-			str[MAX_DIGIT_LENGHT - i - 1] = mod + '0';
-			i++;
+		// bits[i] * 2 ^ (n - i - 1);
+
+		// Reset relevant pointers.
+		big_int_reset(product);
+		big_int_reset(power);
+		big_int_reset(difference_n_minus_iterator);
+		big_int_reset(difference_n_minus_iterator_minus_one);
+		big_int_reset(iterator);
+		big_int_reset(current_value);
+
+		//What is it for: stores the current sum on this stack. sum will be reset later.
+		BIG_INT * temporal_sum = base_ctor();
+		ctor_char("0", temporal_sum);
+		BIG_INT_COPY_FROM_TO(sum, temporal_sum);
+
+		// Implementation to reject when values are not 0's or 1's
+		if(bits[i] < BITS[0] || BITS[1] < bits[i] ){
+			printf("The bit [%d] is not 1 or 0. Escaping it...\n", bits[i]);
+			continue;
 		}
-		str[MAX_DIGIT_LENGHT - i - 1] = (number % 10) + '0';
+		#ifdef DEBUG_CTOR_BINARY
+			printf("%d * 2 ** (%d - %d -1)\n",bits[i]-48, len, i);
+		#endif
+
+		// Implementation to convert the current value to big integer.
+		ctor_int(bits[i] - 48, current_value);
+		// Implementation to convert the i into a big integer iterator.
+		ctor_int(i, iterator);
+		
+		// Apply (n - i)
+		big_int_substract(length, iterator, difference_n_minus_iterator);
+		// Apply (n - i - 1)
+		big_int_substract(difference_n_minus_iterator, one, difference_n_minus_iterator_minus_one);
+		// Apply 2 ^ (n - i - 1)
+		big_int_power(two, difference_n_minus_iterator_minus_one, power);
+		// Apply bits[i] *  2 ^ (n - i - 1)
+		big_int_multiply(current_value, power, product);
+		// What it does: prevent corruption on acumulating the sum of each iteration.
+		big_int_reset(sum);
+		// Apply acumulated_sum +  bits[i] *  2 ^ (n - i - 1)
+		big_int_sum(temporal_sum, product, sum);
+		free(temporal_sum);
 	}
-	else
-	{
-		str[MAX_DIGIT_LENGHT - 1] = number % 10 + '0';
-	}
-	memmove(str, str + (MAX_DIGIT_LENGHT - i - 1), i + 1);
+	// Move the sum to the final result.
+	BIG_INT_COPY_FROM_TO(sum, r);
+
+	free(power);
+	free(product);
+	free(iterator);
+	free(length);
+	free(current_value);
+	free(difference_n_minus_iterator);
+	free(two);
+	free(one);
+	free(sum);
 }
+
 
 /**
  * @brief Constructs a BIG_INT from a long.
  *
+ * @bug incorrect padding at suming and substracting.
  * @param number
  * @return BIG_INT*
  */
@@ -1367,36 +1446,51 @@ static bool is_even(char c)
 			c == '8');
 }
 
-// 512 bits digits is 512 0 and 1, 64 bytes of 8 bits, 128 Hex digits.
+/**
+ * @brief generate an unsafe/naive big_int from random bytes given the bits digits.
+ *
+ * @param n bits digits
+ * @param BN big integer.
+ *
+ * 512 bits digits is 512 0 and 1, 64 bytes of 8 bits, 128 Hex digits.
+ *
+ */
 void big_int_random(int n, BIG_INT *BN)
 {
-	srand ( time(NULL) );
+	// Seed rand
+	srand(time(NULL));
 
+	// Calculate the total of bytes of the random number.
 	uint16_t total_of_bytes = n / 8;
 
+	// If the n % 8 != 0, there's remainder. Although this implementation does not pad the number.
 	uint16_t remainder = n - total_of_bytes * 8;
-	uint8_t * stream_of_bytes = (uint8_t *)malloc(sizeof(uint8_t) * total_of_bytes);
-
+	// A container stream to story the random bytes after each loop.
+	uint8_t *stream_of_bytes = (uint8_t *)malloc(sizeof(uint8_t) * total_of_bytes);
 	memset(stream_of_bytes, '\0', total_of_bytes);
-
+	// Main logic: Store in i each random byte.
 	int i = 0;
-	
 	while (i < total_of_bytes)
 	{
 		stream_of_bytes[i] = rand() % 256;
 		i++;
 	}
 
+	// A containter for the hex of the converstion of bytes to hexadecimal. +2 is for '0X'
 	uint8_t *hex = malloc(sizeof(uint8_t) * total_of_bytes * 2 + 2);
+	// Implementation to more the pointer off 0X hexadecimal begining.
 	hex = hex + 2;
-
 	memset(hex, '\0', sizeof(total_of_bytes) * 2);
-
+	// Convert the bytes to hex decimal, since on December 01, 2024, there no function bytes_to_big_int()
 	bytes_to_hex(stream_of_bytes, hex, total_of_bytes);
+	// Move back the pointer so that we can include the 0X on the convertion hex_to_big_int
 	hex = hex - 2;
+	// Implementation to set the 0X to the hex before conversion.
 	hex[0] = '0';
 	hex[1] = 'x';
-	printf("%s\n", hex);
-	
+	// Convertion of the hex to BN.
 	ctor_hex(hex, BN);
 }
+
+void bytes_to_big_int(uint8_t *bytes, BIG_INT *BN) {};
+void big_int_to_bytes(BIG_INT *BN, uint8_t *bytes) {};
