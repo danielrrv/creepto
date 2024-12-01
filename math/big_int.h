@@ -8,14 +8,14 @@
 #include <stdbool.h>
 #include <math.h>
 #include "assert.h"
+#include "utils.h"
+#include <time.h>
 // const a = 'd'
 #define IS_DIGIT(c) (('0' <= c && c <= '9') ? 1 : 0)
 #define IS_HEXALPH(c) ((('a' <= c && c <= 'f') || ('A' <= c && c <= 'F')) ? 1 : 0)
 
-#define ARRAY_LEN(array, length_name) \
-	uint16_t##length_name;            \
-	while (*array != '\0')            \
-		##length_name++;
+#define ARRAY_LEN(array, length_val) \ while (*array != '\0') \
+	length_val++;
 
 #define BIG_INT_IS_ZERO(big_int) (big_int->length == 1 && big_int->digits[0] == '0')
 #define BIG_INT_IS_ONE(big_int) (big_int->length == 1 && big_int->digits[0] == '1')
@@ -119,6 +119,7 @@ void big_int_power(BIG_INT *a, BIG_INT *x, BIG_INT *);
 void big_int_root_square(BIG_INT *, BIG_INT *);
 void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R);
 void big_int_gcd(BIG_INT *, BIG_INT *, BIG_INT *);
+void big_int_random(int n, BIG_INT *BN);
 
 // Primitives
 static void add(uint8_t *sum, uint8_t a, uint8_t b, uint8_t *carry);
@@ -294,7 +295,7 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 		r = NULL;
 		return;
 	}
-
+	
 	// Implementation to discard and the first 2 characters of hex validation.
 	if (*hex == '0' && (hex[1] == 'x' || hex[1] == 'X'))
 		hex += 2;
@@ -302,7 +303,7 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 	else
 	{
 		r = NULL;
-		printf("///%d\n", r == NULL);
+		printf("error in hex=%d\n", r == NULL);
 		return;
 	}
 
@@ -312,7 +313,7 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 		len++;
 	// Implementation to move back the pointer to the original position.
 	hex -= len + 1;
-	printf("%s\n", hex);
+	printf("reset hex=%s\n", hex);
 
 	// Exception # 3: the characters must be alphanumeric from [0-9][aA-fF].
 	if (is_valid_hex_string(hex, len) == 0x00)
@@ -395,7 +396,7 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 	free(product);
 }
 
-//To deprecate.
+// To deprecate.
 void toString(int number, uint8_t *str)
 {
 	if (str == NULL)
@@ -835,8 +836,6 @@ void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 	free(high);
 	free(low);
 }
-
-
 
 /**
  * @brief BIG_INT a power  BIG_INT x
@@ -1292,7 +1291,6 @@ static uint8_t is_valid_hex_string(uint8_t *str, uint16_t len)
 	return 0x01;
 }
 
-
 /**
  * @brief mod of M % N
  * @param M
@@ -1338,16 +1336,16 @@ void big_int_gcd(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 	{
 		// PRINT_BIG_INT(B);
 		BIG_INT *modulus_of_B_and_A = base_ctor();
-		big_int_mod(B, A,modulus_of_B_and_A);
-	
+		big_int_mod(B, A, modulus_of_B_and_A);
+
 		big_int_reset(A);
-		
+
 		BIG_INT_COPY_FROM_TO(A, B);
-		
+
 		big_int_reset(B);
 		// PRINT_BIG_INT(modulus_of_A_and_B);
 		BIG_INT_COPY_FROM_TO(modulus_of_B_and_A, A);
-		
+
 		free(modulus_of_B_and_A);
 	}
 
@@ -1367,4 +1365,38 @@ static bool is_even(char c)
 			c == '4' ||
 			c == '6' ||
 			c == '8');
+}
+
+// 512 bits digits is 512 0 and 1, 64 bytes of 8 bits, 128 Hex digits.
+void big_int_random(int n, BIG_INT *BN)
+{
+	srand ( time(NULL) );
+
+	uint16_t total_of_bytes = n / 8;
+
+	uint16_t remainder = n - total_of_bytes * 8;
+	uint8_t * stream_of_bytes = (uint8_t *)malloc(sizeof(uint8_t) * total_of_bytes);
+
+	memset(stream_of_bytes, '\0', total_of_bytes);
+
+	int i = 0;
+	
+	while (i < total_of_bytes)
+	{
+		stream_of_bytes[i] = rand() % 256;
+		i++;
+	}
+
+	uint8_t *hex = malloc(sizeof(uint8_t) * total_of_bytes * 2 + 2);
+	hex = hex + 2;
+
+	memset(hex, '\0', sizeof(total_of_bytes) * 2);
+
+	bytes_to_hex(stream_of_bytes, hex, total_of_bytes);
+	hex = hex - 2;
+	hex[0] = '0';
+	hex[1] = 'x';
+	printf("%s\n", hex);
+	
+	ctor_hex(hex, BN);
 }

@@ -970,6 +970,16 @@ void test_should_big_int_gcd()
 	free(B);
 }
 
+
+void test_big_int_random(){
+	BIG_INT *BN = base_ctor();
+	int n = 1024;
+	big_int_random(n / 2, BN);
+
+	PRINT_BIG_INT(BN);
+
+}
+
 int main()
 {
 
@@ -1014,6 +1024,10 @@ int main()
 #endif
 #ifdef POW_ONLY
 	test_should_pow();
+#endif
+
+#ifdef RAND
+	test_big_int_random();
 #endif
 	return 0;
 }
