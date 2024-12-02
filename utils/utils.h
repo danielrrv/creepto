@@ -12,7 +12,7 @@ const uint8_t ALPHABET_HEX[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
 void bytes_to_hex(uint8_t *bytes, uint8_t *hex, uint16_t size_of_bytes);
 void bytes_to_hex(uint8_t *bytes, uint8_t *hex, uint16_t size_of_bytes)
 {
-	
+
 	int i = 0;
 	while (i < size_of_bytes)
 	{
@@ -22,4 +22,15 @@ void bytes_to_hex(uint8_t *bytes, uint8_t *hex, uint16_t size_of_bytes)
 		i++;
 	}
 }
+
+void reverse_array_of_uint8(uint8_t *arr, size_t size)
+{
+	for (int i = 0; i < size / 2; i++)
+	{
+		int temp = arr[i];
+		arr[i] = arr[size - 1 - i];
+		arr[size - 1 - i] = temp;
+	}
+}
+
 #endif

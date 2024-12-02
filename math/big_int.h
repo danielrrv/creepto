@@ -121,6 +121,7 @@ void big_int_root_square(BIG_INT *, BIG_INT *);
 void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R);
 void big_int_gcd(BIG_INT *, BIG_INT *, BIG_INT *);
 void big_int_random(int n, BIG_INT *BN);
+uint8_t *big_int_to_bits(BIG_INT *BN);
 
 // Primitives
 static void add(uint8_t *sum, uint8_t a, uint8_t b, uint8_t *carry);
@@ -396,13 +397,12 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 	free(product);
 }
 
-
 /**
  * @brief construct a big integer from array of bits.
  * @param bits
  * @param r
- * 
-*/
+ *
+ */
 void ctor_binary(uint8_t *bits, BIG_INT *r)
 {
 	uint8_t const BITS[] = {'0', '1'};
@@ -423,9 +423,6 @@ void ctor_binary(uint8_t *bits, BIG_INT *r)
 	BIG_INT *iterator = base_ctor();
 	// What is it for; track the length of bits as big_int.
 	BIG_INT *length = base_ctor();
-	// What is it for; track the length of bits as big_int.
-	BIG_INT *difference_n_minus_iterator = base_ctor();
-	BIG_INT *difference_n_minus_iterator_minus_one = base_ctor();
 	// What is it for: track the current value of the iteration.
 	BIG_INT *current_value = base_ctor();
 	// 2 as big_int.
@@ -442,7 +439,6 @@ void ctor_binary(uint8_t *bits, BIG_INT *r)
 	ctor_char("2", two);
 	ctor_char("1", one);
 
-
 	for (size_t i = 0; i < len; i++)
 	{
 		// bits[i] * 2 ^ (n - i - 1);
@@ -450,30 +446,34 @@ void ctor_binary(uint8_t *bits, BIG_INT *r)
 		// Reset relevant pointers.
 		big_int_reset(product);
 		big_int_reset(power);
-		big_int_reset(difference_n_minus_iterator);
-		big_int_reset(difference_n_minus_iterator_minus_one);
 		big_int_reset(iterator);
 		big_int_reset(current_value);
 
-		//What is it for: stores the current sum on this stack. sum will be reset later.
-		BIG_INT * temporal_sum = base_ctor();
+		// What is it for; track the length of bits as big_int.
+		//Really to debug bug here. Apparently difference_n_minus_iterator_minus_one 
+		// after 100 loops starts corrupting really off. Nothing could prevent its corruption.
+		// big_int_substract and ctor_binary were involved.
+		// Possible test: call big_int_reset 1000 times and see if the pointer got corrupter.
+		BIG_INT *difference_n_minus_iterator = base_ctor();
+		BIG_INT *difference_n_minus_iterator_minus_one = base_ctor();
+
+		// What is it for: stores the current sum on this stack. sum will be reset later.
+		BIG_INT *temporal_sum = base_ctor();
 		ctor_char("0", temporal_sum);
 		BIG_INT_COPY_FROM_TO(sum, temporal_sum);
-
 		// Implementation to reject when values are not 0's or 1's
-		if(bits[i] < BITS[0] || BITS[1] < bits[i] ){
-			printf("The bit [%d] is not 1 or 0. Escaping it...\n", bits[i]);
+		if (bits[i] < BITS[0] || BITS[1] < bits[i])
+		{
+			printf("The bit %d is not 1 or 0. Escaping it...\n", bits[i]);
 			continue;
 		}
-		#ifdef DEBUG_CTOR_BINARY
-			printf("%d * 2 ** (%d - %d -1)\n",bits[i]-48, len, i);
-		#endif
-
+#ifdef DEBUG_CTOR_BINARY
+		printf("%d * 2 ** (%d - %d - 1)\n", bits[i] - 48, len, i);
+#endif
 		// Implementation to convert the current value to big integer.
 		ctor_int(bits[i] - 48, current_value);
 		// Implementation to convert the i into a big integer iterator.
 		ctor_int(i, iterator);
-		
 		// Apply (n - i)
 		big_int_substract(length, iterator, difference_n_minus_iterator);
 		// Apply (n - i - 1)
@@ -486,7 +486,19 @@ void ctor_binary(uint8_t *bits, BIG_INT *r)
 		big_int_reset(sum);
 		// Apply acumulated_sum +  bits[i] *  2 ^ (n - i - 1)
 		big_int_sum(temporal_sum, product, sum);
+#ifdef DEBUG_CTOR_BINARY
+		PRINT_BIG_INT(current_value);
+		PRINT_BIG_INT(iterator);
+		PRINT_BIG_INT(difference_n_minus_iterator);
+		PRINT_BIG_INT(difference_n_minus_iterator_minus_one);
+		PRINT_BIG_INT(power);
+		PRINT_BIG_INT(product);
+		PRINT_BIG_INT(temporal_sum);
+		printf("\n\n");
+#endif
 		free(temporal_sum);
+		free(difference_n_minus_iterator);
+		free(difference_n_minus_iterator_minus_one);
 	}
 	// Move the sum to the final result.
 	BIG_INT_COPY_FROM_TO(sum, r);
@@ -496,12 +508,11 @@ void ctor_binary(uint8_t *bits, BIG_INT *r)
 	free(iterator);
 	free(length);
 	free(current_value);
-	free(difference_n_minus_iterator);
+
 	free(two);
 	free(one);
 	free(sum);
 }
-
 
 /**
  * @brief Constructs a BIG_INT from a long.
@@ -603,7 +614,9 @@ void big_int_sum(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 void big_int_substract(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 {
 #ifdef DEBUGSUBSTRACT
-	printf("Substracting A:[%s]\tB:[%s]\n", A->digits, B->digits);
+	printf("Substracting A=%s (len=%d) - B:=%s (len=%d)\n", A->digits, A->length, B->digits, B->length);
+	PRINT_BIG_INT(R);
+	printf("Continue\n");
 #endif
 	// BIG_INT *value = base_ctor();
 	uint32_t Blen = B->length, Alen = A->length;
@@ -613,7 +626,7 @@ void big_int_substract(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 	for (i = 0; i < Alen || i < Blen || borrow > 0; i++)
 	{
 #ifdef DEBUGSUBSTRACT
-		printf("DEBUG[INPUT]: A'%d(%c) - B'%d(%c) - T'%d(%c)\n",
+		printf("DEBUG[INPUT]: A=%d(%c) - B=%d(%c) - T=%d(%c)\n",
 			   A->digits[A->length - i - 1], A->digits[A->length - i - 1],
 			   B->digits[B->length - i - 1], B->digits[B->length - i - 1], borrow + '0', borrow + '0');
 #endif
@@ -1003,30 +1016,21 @@ static void big_int_divide_by_2(BIG_INT *N, division_result_t *division_result)
 
 	if (is_even(N->digits[N->length - 1]))
 	{
-
 		uint8_t carry = 0;
-		uint8_t remaining = 0;
+		uint8_t remainder = 0;
 		for (int i = 0; i < N->length; i++)
 		{
-			uint8_t need_to_be_divided = ((N->digits[i] - '0') + carry + remaining);
+			uint8_t need_to_be_divided = ((N->digits[i] - '0') + carry);
 			uint8_t quotient = need_to_be_divided / 2;
-
-			// Implementation to clear the carry after usage.
-			if (carry > 0)
-				carry = 0;
-
-			if (quotient == 0 && (N->digits[i] - '0') != 0)
-			{
-				carry = 10;
-				continue;
-			}
-			remaining = (need_to_be_divided - quotient * 2) * 10;
+			remainder = (need_to_be_divided - quotient * 2);
+			carry = remainder * 10;
 #ifdef DEBUG_DIVIDE_BY_2
-			printf("digit=%d\tcarry=%d\tremaining=%d\tquotient=%d\n", (N->digits[i] - '0'), carry, remaining, quotient);
+			printf("digit=%d\tcarry=%d\tremaining=%d\tquotient=%d\n", (N->digits[i] - '0'), carry, remainder, quotient);
 #endif
-			insert_at(division_result->quotient, quotient + '0', division_result->quotient->length);
 
-			// PRINT_BIG_INT(division_result->quotient);
+			if (quotient == 0 && (N->digits[i] - '0') != 0 && i == 0)
+				continue;
+			insert_at(division_result->quotient, quotient + '0', division_result->quotient->length);
 		}
 		INITIALIZE_BIG_INT_TO(division_result->remaining, '0', 1);
 	}
@@ -1042,27 +1046,22 @@ static void big_int_divide_by_2(BIG_INT *N, division_result_t *division_result)
 
 		// Rest a number and return the number and the remaining of 1.
 		int carry = 0;
-		int remaining = 0;
+		int remainder = 0;
 		for (int i = 0; i < SUM->length; i++)
 		{
-			uint8_t need_to_be_divided = ((SUM->digits[i] - '0') + carry + remaining);
+			uint8_t need_to_be_divided = ((SUM->digits[i] - '0') + carry);
 			uint8_t quotient = need_to_be_divided / 2;
-			// Implementation to clear the carry after usage.
-			if (carry > 0)
-				carry = 0;
-			// if(remaining > 0) remaining = 0;
-			if (quotient == 0 && (SUM->digits[i] - '0') != 0)
-			{
-				carry = 10;
+
+			remainder = (need_to_be_divided - quotient * 2);
+			carry = remainder * 10;
+
+			if (quotient == 0 && (SUM->digits[i] - '0') != 0 && i == 0)
 				continue;
-			}
-			remaining = (need_to_be_divided - quotient * 2) * 10;
+
 #ifdef DEBUG_DIVIDE_BY_2
-			printf("digit=%d\tcarry=%d\tremaining=%d\tquotient=%d\n", (N->digits[i] - '0'), carry, remaining, quotient);
+			printf("digit=%d\tcarry=%d\tremaining=%d\tquotient=%d\n", (N->digits[i] - '0'), carry, remainder, quotient);
 #endif
 			insert_at(division_result->quotient, quotient + '0', division_result->quotient->length);
-
-			// PRINT_BIG_INT(division_result->quotient);;
 		}
 
 		INITIALIZE_BIG_INT_TO(division_result->remaining, '1', 1);
@@ -1490,7 +1489,59 @@ void big_int_random(int n, BIG_INT *BN)
 	hex[1] = 'x';
 	// Convertion of the hex to BN.
 	ctor_hex(hex, BN);
-}
+};
 
-void bytes_to_big_int(uint8_t *bytes, BIG_INT *BN) {};
-void big_int_to_bytes(BIG_INT *BN, uint8_t *bytes) {};
+uint8_t * big_int_to_bits(BIG_INT *BN)
+{
+	int block_size = 1024;
+	int number_of_blocks = 1;
+	BIG_INT *quotient = base_ctor();
+	BIG_INT *numerator = base_ctor();
+
+	BIG_INT_COPY_FROM_TO(BN, numerator);
+	ctor_char("1", quotient);
+	// TODO: move 1024 to constant.
+	uint8_t *stream_of_bits = (uint8_t *)malloc(sizeof(uint8_t) * block_size);
+	uint8_t *prev_ptr_stream_of_bits = NULL;
+	memset(stream_of_bits, '\0', block_size);
+
+	int i = 0;
+	while (!BIG_INT_IS_ZERO(numerator))
+	{
+		division_result_t *division_result;
+		DIVISION_RESULT_FACTORY(division_result);
+
+		big_int_divide_by_2(numerator, division_result);
+
+		big_int_reset(numerator);
+		BIG_INT_COPY_FROM_TO(division_result->quotient, numerator);
+
+		if (block_size * number_of_blocks < i)
+		{
+			number_of_blocks++;
+			stream_of_bits = realloc(stream_of_bits, sizeof(uint8_t) * number_of_blocks * block_size);
+			printf("%s\n", stream_of_bits);
+			memset(stream_of_bits + sizeof(uint8_t) * i, '\0', block_size);
+		}
+		memcpy(stream_of_bits + sizeof(uint8_t) * i, division_result->remaining->digits, sizeof(uint8_t) * 1);
+
+#ifdef DEBUG_TO_BITS
+
+		PRINT_BIG_INT(numerator);
+		// PRINT_BIG_INT(division_result->quotient);
+		PRINT_BIG_INT(division_result->remaining);
+		printf("\n\n");
+
+#endif
+		big_int_reset(division_result->quotient);
+		big_int_reset(division_result->remaining);
+		free(division_result);
+		i++;
+	}
+	// Reverse the array of bits.
+	reverse_array_of_uint8(stream_of_bits, i);
+	return stream_of_bits;
+#ifdef DEBUG_TO_BITS
+	printf("%s\n", stream_of_bits);
+#endif
+};
