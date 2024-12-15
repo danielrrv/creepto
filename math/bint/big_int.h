@@ -10,6 +10,8 @@
 #include "assert.h"
 #include "utils.h"
 #include <time.h>
+#include "random.h"
+
 // const a = 'd'
 #define IS_DIGIT(c) (('0' <= c && c <= '9') ? 1 : 0)
 #define IS_HEXALPH(c) ((('a' <= c && c <= 'f') || ('A' <= c && c <= 'F')) ? 1 : 0)
@@ -132,7 +134,7 @@ static uint8_t primitive_sum(uint8_t, uint8_t, uint8_t);
 static uint8_t apply_carry_if_apply(uint8_t *, uint8_t *);
 static void big_int_divide_by_2(BIG_INT *N, division_result_t *division_result);
 static bool is_even(char c);
-static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high, BIG_INT *low, BIG_INT *factor);
+static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high, BIG_INT *low, BIG_INT *factor, unsigned long iterations);
 
 // uint8_t valid_integer_at()
 
@@ -914,7 +916,7 @@ void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 	ctor_char("0", low);
 	BIG_INT *factor = base_ctor();
 
-	big_int_factor_between_m_and_n(A, B, high, low, factor);
+	big_int_factor_between_m_and_n(A, B, high, low, factor, 0L);
 
 	BIG_INT *factor_x_A = base_ctor();
 	BIG_INT *diff = base_ctor();
@@ -1079,7 +1081,7 @@ static void big_int_divide_by_2(BIG_INT *N, division_result_t *division_result)
  * @param low
  * @param factor
  */
-static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high, BIG_INT *low, BIG_INT *factor)
+static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high, BIG_INT *low, BIG_INT *factor, unsigned long iterations)
 {
 #ifdef DEBUG_FACTOR
 	PRINT_BIG_INT(M);
@@ -1131,6 +1133,7 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 			free(factor_x_N);
 			free(diff_M_minus_N);
 		}
+		printf("iterations=%ld\n", iterations);
 		return;
 	}
 	else
@@ -1153,7 +1156,7 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 				free(diff_M_minus_N);
 			}
 			big_int_reset(factor);
-			return big_int_factor_between_m_and_n(M, N, high, low, factor);
+			return big_int_factor_between_m_and_n(M, N, high, low, factor, iterations + 1L);
 		}
 		else
 		{
@@ -1172,7 +1175,7 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 				free(diff_M_minus_N);
 			}
 			big_int_reset(factor);
-			return big_int_factor_between_m_and_n(M, N, high, low, factor);
+			return big_int_factor_between_m_and_n(M, N, high, low, factor, iterations + 1L);
 		}
 	}
 }
@@ -1392,7 +1395,7 @@ void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R)
 	ctor_char("0", low);
 
 	BIG_INT *factor = base_ctor();
-	big_int_factor_between_m_and_n(M, N, high, low, factor);
+	big_int_factor_between_m_and_n(M, N, high, low, factor, 0L);
 	// PRINT_BIG_INT(factor);
 
 	BIG_INT *factor_x_N = base_ctor();
@@ -1456,9 +1459,6 @@ static bool is_even(char c)
  */
 void big_int_random(int n, BIG_INT *BN)
 {
-	// Seed rand
-	srand(time(NULL));
-
 	// Calculate the total of bytes of the random number.
 	uint16_t total_of_bytes = n / 8;
 
@@ -1468,13 +1468,7 @@ void big_int_random(int n, BIG_INT *BN)
 	uint8_t *stream_of_bytes = (uint8_t *)malloc(sizeof(uint8_t) * total_of_bytes);
 	memset(stream_of_bytes, '\0', total_of_bytes);
 	// Main logic: Store in i each random byte.
-	int i = 0;
-	while (i < total_of_bytes)
-	{
-		stream_of_bytes[i] = rand() % 256;
-		i++;
-	}
-
+	get_OS_entropy(stream_of_bytes, total_of_bytes);
 	// A containter for the hex of the converstion of bytes to hexadecimal. +2 is for '0X'
 	uint8_t *hex = malloc(sizeof(uint8_t) * total_of_bytes * 2 + 2);
 	// Implementation to more the pointer off 0X hexadecimal begining.
@@ -1489,7 +1483,9 @@ void big_int_random(int n, BIG_INT *BN)
 	hex[1] = 'x';
 	// Convertion of the hex to BN.
 	ctor_hex(hex, BN);
+	free(stream_of_bytes);
 };
+
 
 uint8_t * big_int_to_bits(BIG_INT *BN)
 {
@@ -1499,6 +1495,7 @@ uint8_t * big_int_to_bits(BIG_INT *BN)
 	BIG_INT *numerator = base_ctor();
 
 	BIG_INT_COPY_FROM_TO(BN, numerator);
+	
 	ctor_char("1", quotient);
 	// TODO: move 1024 to constant.
 	uint8_t *stream_of_bits = (uint8_t *)malloc(sizeof(uint8_t) * block_size);

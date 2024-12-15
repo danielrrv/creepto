@@ -914,7 +914,7 @@ void test_should_factor_between_m_and_n()
 	ctor_char("0", ZERO);
 
 	BIG_INT_COPY_FROM_TO(A, high);
-	big_int_factor_between_m_and_n(A, B, high, ZERO, factor);
+	big_int_factor_between_m_and_n(A, B, high, ZERO, factor, 0L);
 
 	PRINT_BIG_INT(factor);
 	uint8_t cc1[] = {'8'};
@@ -932,7 +932,7 @@ void test_should_factor_between_m_and_n()
 	ctor_char("0", ZERO);
 
 	BIG_INT_COPY_FROM_TO(A, high);
-	big_int_factor_between_m_and_n(A, B, high, ZERO, factor);
+	big_int_factor_between_m_and_n(A, B, high, ZERO, factor, 0L);
 	PRINT_BIG_INT(factor);
 	uint8_t cc2[] = {'6'};
 	assert(strncmp(factor->digits, cc2, 1) == 0);
@@ -950,7 +950,7 @@ void test_should_factor_between_m_and_n()
 	ctor_char("0", ZERO);
 
 	BIG_INT_COPY_FROM_TO(A, high);
-	big_int_factor_between_m_and_n(A, B, high, ZERO, factor);
+	big_int_factor_between_m_and_n(A, B, high, ZERO, factor, 0L);
 	PRINT_BIG_INT(factor);
 	uint8_t cc3[] = {'6'};
 	assert(strncmp(factor->digits, R->digits, R->length) == 0);
