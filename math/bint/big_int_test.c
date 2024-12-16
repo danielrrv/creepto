@@ -130,13 +130,13 @@ void test_should_ctor_hex()
 void test_should_ctor_binary()
 {
 	BIG_INT *bg_binary = base_ctor();
-	BIG_INT * BN = base_ctor();
-	//test1
+	BIG_INT *BN = base_ctor();
+	// test1
 	uint8_t bits1[] = "10100101110110010010011001110110101110110010101001001011101";
 	ctor_binary(bits1, bg_binary);
 	big_int_reset(bg_binary);
 
-	//test2
+	// test2
 	uint8_t cc[] = "293526964144245653563453456734594950540453460435665450340344366202342340663204350562034034";
 	ctor_char(cc, BN);
 	uint8_t bits2[] = "1001001110001101101011000111111000100101101101111001101100011010000101101111111010000110001001101001010001111001010101101101110110101101000001010001111010100111000001000101000101101010011010001101011110010011110011000110010000101001101110010111001100110110010000110001000101010011100110000101110010";
@@ -149,7 +149,6 @@ void test_should_ctor_binary()
 	free(bg_binary);
 	free(BN);
 }
-
 
 void test_should_sum()
 {
@@ -859,8 +858,7 @@ void test_should_divide_by_2()
 	division_result->quotient = base_ctor();
 	division_result->remaining = base_ctor();
 
-	
-	//Test #1
+	// Test #1
 	ctor_char("0", division_result->remaining);
 	ctor_char("107", A);
 
@@ -879,7 +877,7 @@ void test_should_divide_by_2()
 	// Test #2:
 	ctor_char("0", division_result->remaining);
 	ctor_char("733817410", A);
-	uint8_t cc2[] ="366908705";
+	uint8_t cc2[] = "366908705";
 
 	big_int_divide_by_2(A, division_result);
 
@@ -891,8 +889,7 @@ void test_should_divide_by_2()
 	big_int_reset(division_result->remaining);
 	big_int_reset(A);
 
-
-	//Free pointers
+	// Free pointers
 	big_int_free(A);
 	big_int_free(division_result->quotient);
 	big_int_free(division_result->remaining);
@@ -1018,39 +1015,66 @@ void test_should_big_int_gcd()
 	printf("==>test_should_big_int_gcd()[passed]\n");
 }
 
-
-//TODO: Expand to more test cases.
-void test_should_big_int_random(){
+// TODO: Expand to more test cases.
+void test_should_big_int_random()
+{
 	BIG_INT *BN = base_ctor();
 	int n = 1024;
 	big_int_random(n / 2, BN);
+	assert(BN != NULL);
 
-	PRINT_BIG_INT(BN);
+	// Random in range:
+	big_int_reset(BN);
+	BIG_INT *start = base_ctor();
+	BIG_INT *end = base_ctor();
+
+	ctor_char("223474344737239378239937829848829388293", start);
+	ctor_char("66575388423092302390209309023479234982349824223232", end);
+
+	big_int_random_in_range(start, end, BN);
+	assert(big_int_greater_than(BN, start) == 0x01);
+	assert(big_int_greater_than(end, BN) == 0x1);
+
+	free(start);
+	free(end);
 	printf("==>test_should_big_int_random[passed]\n");
 }
 
-
- void test_should_big_int_to_bits(){
-	printf("==>test_should_big_int_to_bits[testing]\n");
+void test_should_big_int_to_bits()
+{
 	BIG_INT *A = base_ctor();
-	BIG_INT * BN = base_ctor();
-	uint8_t cc[]="293526964144245653563453456734594950540453460435665450340344366202342340663204350562034034";
-
-	ctor_char(cc, A);
-
-	uint8_t * bits  = (uint8_t *)big_int_to_bits(A);
-	printf("%s\n", bits);
+	BIG_INT *BN = base_ctor();
+	// Test #1:
+	ctor_char("293526964144245653563453456734594950540453460435665450340344366202342340663204350562034034", A);
+	uint8_t *bits1 = (uint8_t *)big_int_to_bits(A);
+	printf("%s\n", bits1);
+	
 	PRINT_BIG_INT(BN);
 
-	ctor_binary(bits, BN);
+	ctor_binary(bits1, BN);
+	assert(BIG_INT_ARE_SAME(A, BN));
+
+	big_int_reset(BN);
+	big_int_reset(A);
+
+	// Test #2:
+	ctor_char("8765434567898765434567890954567564239534590023445345324534634645745645645645634534534535789677234234234", A);
+	uint8_t *bits2 = (uint8_t *)big_int_to_bits(A);
+	printf("%s\n", bits2);
+
+	PRINT_BIG_INT(BN);
+
+	ctor_binary(bits2, BN);
 	assert(BIG_INT_ARE_SAME(A, BN));
 
 	printf("==>test_should_big_int_to_bits[passed]\n");
 	free(A);
-	free(bits);
- }
+	free(BN);
+	free(bits1);
+	free(bits2);
+}
 
-//10101110111101001010100100001001
+// 10101110111101001010100100001001
 
 int main()
 {
@@ -1105,7 +1129,7 @@ int main()
 	test_should_big_int_random();
 #endif
 #ifdef BIG_INT_TO_BITS
- test_should_big_int_to_bits();
+	test_should_big_int_to_bits();
 #endif
 	return 0;
 }

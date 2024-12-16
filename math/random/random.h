@@ -16,7 +16,6 @@ static void get_OS_entropy(uint8_t *in_out_bytes, int byte_size)
 #if defined(_WIN32) || defined(__CYGWIN__)
     printf("on Windows\n");
 #elif defined(__linux__)
-    printf("on Unix\n");
     const int fd = open("/dev/urandom", O_RDONLY);
     if (fd < 0)
     {

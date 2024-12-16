@@ -25,7 +25,7 @@ random_big_int:bint/big_int_test.c
 	$(CC) $^ -DRAND $(libraries) -o bint/big_int_test.o && ./bint/big_int_test.o  
 big_int_to_bits:bint/big_int_test.c
 	$(CC) $^ -DBIG_INT_TO_BITS   $(libraries) -o bint/big_int_test.o && ./bint/big_int_test.o 
-random_generation: random/random_test.c
+entropy: random/random_test.c
 	$(CC) $^ $(libraries) -o random/random_test.o && ./random/random_test.o
 clean:
 	rm bint/big_int_test.o random/random_test.o

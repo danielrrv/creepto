@@ -123,6 +123,7 @@ void big_int_root_square(BIG_INT *, BIG_INT *);
 void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R);
 void big_int_gcd(BIG_INT *, BIG_INT *, BIG_INT *);
 void big_int_random(int n, BIG_INT *BN);
+void big_int_random_in_range(BIG_INT *start, BIG_INT *end, BIG_INT *R);
 uint8_t *big_int_to_bits(BIG_INT *BN);
 
 // Primitives
@@ -316,9 +317,8 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 		len++;
 	// Implementation to move back the pointer to the original position.
 	hex -= len + 1;
-	printf("reset hex=%s\n", hex);
 
-	// Exception # 3: the characters must be alphanumeric from [0-9][aA-fF].
+	// Exception # 3: the characters must be alphanumeric from [0-9-aA-fF].
 	if (is_valid_hex_string(hex, len) == 0x00)
 	{
 		r = NULL;
@@ -452,7 +452,7 @@ void ctor_binary(uint8_t *bits, BIG_INT *r)
 		big_int_reset(current_value);
 
 		// What is it for; track the length of bits as big_int.
-		//Really to debug bug here. Apparently difference_n_minus_iterator_minus_one 
+		// Really to debug bug here. Apparently difference_n_minus_iterator_minus_one
 		// after 100 loops starts corrupting really off. Nothing could prevent its corruption.
 		// big_int_substract and ctor_binary were involved.
 		// Possible test: call big_int_reset 1000 times and see if the pointer got corrupter.
@@ -1365,7 +1365,8 @@ static uint8_t is_valid_hex_string(uint8_t *str, uint16_t len)
 	{
 		if (0x01 ^ (IS_DIGIT(str[i]) | IS_HEXALPH(str[i])) == 1)
 		{
-			printf("Invalid Hex\n");
+			printf("Invalid Hex:%s \n", str);
+
 			return 0x00;
 		}
 	}
@@ -1451,7 +1452,7 @@ static bool is_even(char c)
 /**
  * @brief generate an unsafe/naive big_int from random bytes given the bits digits.
  *
- * @param n bits digits
+ * @param n bits digits length
  * @param BN big integer.
  *
  * 512 bits digits is 512 0 and 1, 64 bytes of 8 bits, 128 Hex digits.
@@ -1461,6 +1462,10 @@ void big_int_random(int n, BIG_INT *BN)
 {
 	// Calculate the total of bytes of the random number.
 	uint16_t total_of_bytes = n / 8;
+	
+	// Implementation to consider number smaller than 8 bits.
+	if (total_of_bytes == 0)
+		total_of_bytes = 1;
 
 	// If the n % 8 != 0, there's remainder. Although this implementation does not pad the number.
 	uint16_t remainder = n - total_of_bytes * 8;
@@ -1470,10 +1475,10 @@ void big_int_random(int n, BIG_INT *BN)
 	// Main logic: Store in i each random byte.
 	get_OS_entropy(stream_of_bytes, total_of_bytes);
 	// A containter for the hex of the converstion of bytes to hexadecimal. +2 is for '0X'
-	uint8_t *hex = malloc(sizeof(uint8_t) * total_of_bytes * 2 + 2);
-	// Implementation to more the pointer off 0X hexadecimal begining.
+	uint8_t *hex = malloc(sizeof(uint8_t) * ((total_of_bytes * 2) + 2));
+	memset(hex, '\0', (total_of_bytes * 2) + 2);
+	// Implementation to reserve the pointer off 0X hexadecimal at the begining.
 	hex = hex + 2;
-	memset(hex, '\0', sizeof(total_of_bytes) * 2);
 	// Convert the bytes to hex decimal, since on December 01, 2024, there no function bytes_to_big_int()
 	bytes_to_hex(stream_of_bytes, hex, total_of_bytes);
 	// Move back the pointer so that we can include the 0X on the convertion hex_to_big_int
@@ -1483,11 +1488,61 @@ void big_int_random(int n, BIG_INT *BN)
 	hex[1] = 'x';
 	// Convertion of the hex to BN.
 	ctor_hex(hex, BN);
+	free(hex);
 	free(stream_of_bytes);
 };
 
+/**
+ * @since 15/12/2024
+ * @brief generate random big number in given range,
+ * @param start lower limit
+ * @param end the upper limit
+ * @param R the result BN
+ *
+ */
+void big_int_random_in_range(BIG_INT *start, BIG_INT *end, BIG_INT *R)
+{
 
-uint8_t * big_int_to_bits(BIG_INT *BN)
+	uint8_t *array_bits_of_start_number = (uint8_t *)big_int_to_bits(start);
+	uint8_t *array_bits_of_end_number = (uint8_t *)big_int_to_bits(end);
+
+	int len_of_start = 0;
+	while (*(array_bits_of_start_number++) != '\0')
+		len_of_start++;
+	array_bits_of_start_number -= len_of_start + 1;
+
+	int len_of_end = 0;
+	while (*(array_bits_of_end_number++) != '\0')
+		len_of_end++;
+	array_bits_of_end_number -= len_of_end + 1;
+
+	BIG_INT *random_number = base_ctor();
+	int n = (len_of_end - len_of_start) + 8;
+
+	do
+	{
+		big_int_reset(random_number);
+		++n;
+		big_int_random(len_of_start  + n, random_number);
+		// Implementation to go down on bits to that we keep generating random random.
+		if (n >= len_of_end)n = n - 1;
+		PRINT_BIG_INT(random_number);
+
+	} while ( big_int_greater_than(end, random_number) == 0x00 || big_int_greater_than(random_number, start) == 0x00);
+
+	BIG_INT_COPY_FROM_TO(random_number, R);
+	free(array_bits_of_start_number);
+	free(array_bits_of_end_number);
+}
+
+/**
+ * @since 01/12/2024
+ * @brief get the bits of the BN
+ * @param BN
+ * @returns array of bits.`
+ *
+ */
+uint8_t *big_int_to_bits(BIG_INT *BN)
 {
 	int block_size = 1024;
 	int number_of_blocks = 1;
@@ -1495,7 +1550,7 @@ uint8_t * big_int_to_bits(BIG_INT *BN)
 	BIG_INT *numerator = base_ctor();
 
 	BIG_INT_COPY_FROM_TO(BN, numerator);
-	
+
 	ctor_char("1", quotient);
 	// TODO: move 1024 to constant.
 	uint8_t *stream_of_bits = (uint8_t *)malloc(sizeof(uint8_t) * block_size);
@@ -1523,7 +1578,6 @@ uint8_t * big_int_to_bits(BIG_INT *BN)
 		memcpy(stream_of_bits + sizeof(uint8_t) * i, division_result->remaining->digits, sizeof(uint8_t) * 1);
 
 #ifdef DEBUG_TO_BITS
-
 		PRINT_BIG_INT(numerator);
 		// PRINT_BIG_INT(division_result->quotient);
 		PRINT_BIG_INT(division_result->remaining);
