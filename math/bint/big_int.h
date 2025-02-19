@@ -1406,7 +1406,8 @@ void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R)
 	big_int_substract(M, factor_x_N, diff_with_M);
 
 	BIG_INT_COPY_FROM_TO(diff_with_M, R);
-
+	free(high);
+	free(low);
 	free(factor);
 	free(factor_x_N);
 	free(diff_with_M);
