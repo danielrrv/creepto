@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <math.h>
 #include "assert.h"
+#include "hex.h"
 #include "utils.h"
 #include <time.h>
 #include "random.h"
@@ -35,7 +36,9 @@
 	b->sign = a->sign;
 
 #define STR(S) #S
-#define PRINT_BIG_INT(A) printf("name=%s\t digits=%s\tlen(%s)=%d\n", STR(A), A->digits, STR(A), A->length)
+#define PRINT_BIG_INT(A) printf("L%d\tname=%s\t digits=%s\tlen(%s)=%d\n", __LINE__, STR(A), A->digits, STR(A), A->length)
+
+#define PRINT_BYTES(ptr, size)printf("[");for (int i = 0;i < size;i++){printf("%d ", ptr[i]);}printf("]\n");
 
 #define DIVISION_RESULT_FACTORY(division_result)                              \
 	division_result = (division_result_t *)malloc(sizeof(division_result_t)); \
@@ -90,7 +93,7 @@ BIG_INT *base_ctor();
 void ctor_char(char *, BIG_INT *);
 void ctor_int(int, BIG_INT *);
 void ctor_long(long, BIG_INT *);
-void ctor_hex(uint8_t *, BIG_INT *);
+void ctor_hex(uint8_t *, BIG_INT *, uint16_t);
 void ctor_binary(uint8_t *, BIG_INT *);
 void big_int_reset(BIG_INT *);
 void big_int_free(BIG_INT *);
@@ -121,10 +124,13 @@ void big_int_modulo(BIG_INT *n, BIG_INT *m);
 void big_int_power(BIG_INT *a, BIG_INT *x, BIG_INT *);
 void big_int_root_square(BIG_INT *, BIG_INT *);
 void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R);
+void big_int_mod_pow(BIG_INT *base, BIG_INT *exp, BIG_INT *mod, BIG_INT *R);
 void big_int_gcd(BIG_INT *, BIG_INT *, BIG_INT *);
 void big_int_random(int n, BIG_INT *BN);
 void big_int_random_in_range(BIG_INT *start, BIG_INT *end, BIG_INT *R);
 uint8_t *big_int_to_bits(BIG_INT *BN);
+bool big_int_is_prime(BIG_INT *n, int k);
+bool big_int_miller_rabin(BIG_INT *n, int k);
 
 // Primitives
 static void add(uint8_t *sum, uint8_t a, uint8_t b, uint8_t *carry);
@@ -154,7 +160,6 @@ uint8_t invert_sign(uint8_t sign)
 }
 
 void clean_zero_in_front(BIG_INT *);
-static uint8_t is_valid_hex_string(uint8_t *str, uint16_t len);
 
 /**
  * @brief Simple BIG_INT constructor.  ->digits allocated memset(0)
@@ -244,7 +249,6 @@ void ctor_char(char *cc, BIG_INT *R)
  */
 void ctor_int(int number, BIG_INT *R)
 {
-	BIG_INT *r = base_ctor();
 	if (0 > number)
 	{
 		R->sign = '-';
@@ -263,21 +267,27 @@ void ctor_int(int number, BIG_INT *R)
 			{
 				number /= 10;
 			}
-			r->digits[MAX_DIGIT_LENGHT - i - 1] = mod + '0';
+			tmp[MAX_INT_DIGIT - i - 1] = mod + '0';
 			i++;
 		}
-		insert_at(r, (number % 10) + '0', MAX_DIGIT_LENGHT - i - 1);
-		r->length = i + 1;
+		tmp[MAX_INT_DIGIT - i - 1] = (number % 10) + '0';
+		i++;
 	}
 	else
 	{
-		r->digits[MAX_DIGIT_LENGHT - 1] = number % 10 + '0';
-		r->length = 1;
+		tmp[0] = number % 10 + '0';
+		i = 1;
 	}
-	r->digits = r->digits + (MAX_DIGIT_LENGHT - i - 1);
 
-	BIG_INT_COPY_FROM_TO(r, R);
-	free(r);
+	if (number >= 10 || i > 1)
+	{
+		memcpy(R->digits, tmp + (MAX_INT_DIGIT - i), i);
+	}
+	else
+	{
+		R->digits[0] = tmp[0];
+	}
+	R->length = i;
 #ifdef DEBUG
 	printf("in:%d out:%s\ti:%d\n", number, R->digits, i);
 #endif
@@ -290,9 +300,9 @@ void ctor_int(int number, BIG_INT *R)
  * @param hex
  * @param r
  */
-void ctor_hex(uint8_t *hex, BIG_INT *r)
+void ctor_hex(uint8_t *hex, BIG_INT *r, uint16_t size)
 {
-
+	
 	// Exception #1: hex shouldn't be null.
 	if (hex == NULL)
 	{
@@ -310,21 +320,11 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 		printf("error in hex=%d\n", r == NULL);
 		return;
 	}
-
-	// implementation to get the length of the array. TODO: Move it to MACRS
-	uint16_t len;
-	while (*(hex++) != '\0')
-		len++;
-	// Implementation to move back the pointer to the original position.
-	hex -= len + 1;
-
+	uint16_t len = size * 2;
 	// Exception # 3: the characters must be alphanumeric from [0-9-aA-fF].
-	if (is_valid_hex_string(hex, len) == 0x00)
-	{
-		r = NULL;
-		printf("///%d\n", r == NULL);
-		return;
-	}
+	
+
+	if (is_valid_hex_string(hex, len) == 0x00)return;
 	// What it is for: track the power result as intermidiate factor for the final multiplication later on.
 	BIG_INT *power = base_ctor();
 	// What it is for: track the decimal result which is the function pointer return.
@@ -341,6 +341,7 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 	ctor_char("0", power);
 	ctor_char("16", sixteen);
 	ctor_char("1", product);
+	
 	// Each digit of the hex array it is a value for the computation.
 	for (size_t i = 0; 0 < len; i++, len--)
 	{
@@ -390,13 +391,15 @@ void ctor_hex(uint8_t *hex, BIG_INT *r)
 	// Finally move decimal to r.
 	BIG_INT_COPY_FROM_TO(decimal, r);
 
-#ifdef DEBUGCTORHEX
+#ifdef DEBUG_CTOR_HEX
 	printf("hex:%s, %s\n", hex, r->digits);
 #endif
-	free(decimal);
-	free(sixteen);
-	free(power);
-	free(product);
+	
+	big_int_free(decimal);
+	big_int_free(sixteen);
+	big_int_free(power);
+	big_int_free(product);
+	big_int_free(val);
 }
 
 /**
@@ -409,7 +412,7 @@ void ctor_binary(uint8_t *bits, BIG_INT *r)
 {
 	uint8_t const BITS[] = {'0', '1'};
 
-	uint16_t len;
+	uint16_t len = 0;
 	while (*(bits++) != '\0')
 		len++;
 	// Implementation to move back the pointer to the original position.
@@ -498,22 +501,22 @@ void ctor_binary(uint8_t *bits, BIG_INT *r)
 		PRINT_BIG_INT(temporal_sum);
 		printf("\n\n");
 #endif
-		free(temporal_sum);
-		free(difference_n_minus_iterator);
-		free(difference_n_minus_iterator_minus_one);
+		big_int_free(temporal_sum);
+		big_int_free(difference_n_minus_iterator);
+		big_int_free(difference_n_minus_iterator_minus_one);
 	}
 	// Move the sum to the final result.
 	BIG_INT_COPY_FROM_TO(sum, r);
 
-	free(power);
-	free(product);
-	free(iterator);
-	free(length);
-	free(current_value);
+	big_int_free(power);
+	big_int_free(product);
+	big_int_free(iterator);
+	big_int_free(length);
+	big_int_free(current_value);
 
-	free(two);
-	free(one);
-	free(sum);
+	big_int_free(two);
+	big_int_free(one);
+	big_int_free(sum);
 }
 
 /**
@@ -525,23 +528,45 @@ void ctor_binary(uint8_t *bits, BIG_INT *r)
  */
 void ctor_long(long number, BIG_INT *R)
 {
-	uint8_t tmp[MAX_INT_DIGIT];
-	memset(tmp, 0, MAX_INT_DIGIT);
-	int i = 0;
-	while ((number / 10) != 0)
+	if (0 > number)
 	{
-		int mod = number % 10;
-		number -= mod;
-		if ((number % 10) == 0)
+		R->sign = '-';
+		number *= -1;
+	}
+	uint8_t tmp[MAX_INT_DIGIT];
+	memset(tmp, '\0', MAX_INT_DIGIT);
+	int i = 0;
+	if (number >= 10)
+	{
+		while ((number / 10) != 0)
 		{
-			number /= 10;
+			int mod = number % 10;
+			number -= mod;
+			if ((number % 10) == 0)
+			{
+				number /= 10;
+			}
+			tmp[MAX_INT_DIGIT - i - 1] = mod + '0';
+			i++;
 		}
-		R->digits[MAX_DIGIT_LENGHT - i - 1] = mod + '0';
+		tmp[MAX_INT_DIGIT - i - 1] = (number % 10) + '0';
 		i++;
 	}
-	insert_at(R, (number % 10) + '0', MAX_DIGIT_LENGHT - i - 1);
-	R->digits = R->digits + (MAX_DIGIT_LENGHT - i - 1);
-	R->length = number > 10 ? i : 1;
+	else
+	{
+		tmp[0] = number % 10 + '0';
+		i = 1;
+	}
+
+	if (number >= 10 || i > 1)
+	{
+		memcpy(R->digits, tmp + (MAX_INT_DIGIT - i), i);
+	}
+	else
+	{
+		R->digits[0] = tmp[0];
+	}
+	R->length = i;
 }
 
 void big_int_sum(BIG_INT *A, BIG_INT *B, BIG_INT *R)
@@ -766,7 +791,7 @@ void big_int_multiply(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 			}
 			else
 			{
-				insert_at(temporal_big_int, '0', MAX_DIGIT_LENGHT);
+				insert_at(temporal_big_int, '0', MAX_DIGIT_LENGHT - 1);
 			}
 			// Implementation to move the pointer to the from back to front.
 			ptr->digits = temporal_big_int->digits + (MAX_DIGIT_LENGHT - j - padding);
@@ -786,6 +811,9 @@ void big_int_multiply(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 #ifdef DEBUG
 		printf("[%s] * [%s] = [%s]:len%d\n", A->digits, B->digits, R->digits, R->length);
 #endif
+		big_int_free(tmp);
+		free(ptr);
+		big_int_free(temporal_big_int);
 	}
 	else
 	{
@@ -843,7 +871,7 @@ void big_int_multiply(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 #ifdef DEBUG
 				printf("Factor is zero\n");
 #endif
-				insert_at(temporal_big_int, '0', MAX_DIGIT_LENGHT);
+				insert_at(temporal_big_int, '0', MAX_DIGIT_LENGHT - 1);
 			}
 			// Implementation to move the pointer to the from back to front.
 			ptr->digits = temporal_big_int->digits + (MAX_DIGIT_LENGHT - j - padding);
@@ -859,9 +887,9 @@ void big_int_multiply(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 			// Implementation to add a new zero to next temporal big_integer.
 			padding++;
 		}
-		free(tmp);
+		big_int_free(tmp);
 		free(ptr);
-		free(temporal_big_int);
+		big_int_free(temporal_big_int);
 #ifdef DEBUG
 		printf("big_int_multiply([%s] * [%s]) = [%s]:lenElse: %d\n", A->digits, B->digits, R->digits, R->length);
 #endif
@@ -894,7 +922,7 @@ void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 		ctor_char("0", one);
 		BIG_INT_COPY_FROM_TO(one, division_result->quotient);
 		BIG_INT_COPY_FROM_TO(B, division_result->remaining);
-		free(one);
+		big_int_free(one);
 		return;
 	}
 	// Case # A is not larger than B. Return zero.
@@ -904,7 +932,7 @@ void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 		ctor_char("0", zero);
 		BIG_INT_COPY_FROM_TO(zero, division_result->quotient);
 		BIG_INT_COPY_FROM_TO(B, division_result->remaining);
-		free(zero);
+		big_int_free(zero);
 		return;
 	}
 
@@ -925,10 +953,10 @@ void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 	BIG_INT_COPY_FROM_TO(factor, division_result->quotient);
 	BIG_INT_COPY_FROM_TO(diff, division_result->remaining);
 
-	free(factor);
-	free(factor_x_A);
-	free(high);
-	free(low);
+	big_int_free(factor);
+	big_int_free(factor_x_A);
+	big_int_free(high);
+	big_int_free(low);
 }
 
 /**
@@ -1001,10 +1029,10 @@ void big_int_power(BIG_INT *a, BIG_INT *x, BIG_INT *R)
 #ifdef DEBUG
 	printf("%s^%s=%s\n", a->digits, x->digits, R->digits);
 #endif
-	free(counter);
-	free(zero);
-	free(one);
-	free(product);
+	big_int_free(counter);
+	big_int_free(zero);
+	big_int_free(one);
+	big_int_free(product);
 }
 
 /**
@@ -1067,8 +1095,8 @@ static void big_int_divide_by_2(BIG_INT *N, division_result_t *division_result)
 		}
 
 		INITIALIZE_BIG_INT_TO(division_result->remaining, '1', 1);
-		free(ONE);
-		free(SUM);
+		big_int_free(ONE);
+		big_int_free(SUM);
 	}
 }
 /**
@@ -1090,6 +1118,15 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 	PRINT_BIG_INT(low);
 #endif
 
+	// Guard: prevent infinite recursion when binary search cannot converge.
+	if (iterations > 10000)
+	{
+		// Return low as best approximation.
+		big_int_reset(factor);
+		BIG_INT_COPY_FROM_TO(low, factor);
+		return;
+	}
+
 	BIG_INT *ONE = base_ctor();
 	ctor_char("1", ONE);
 	// difference between max value of factor and min value of factor.
@@ -1105,6 +1142,31 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 	big_int_substract(M, N, diff_M_minus_N);
 	// Implementation to obtain the range of values of factor.
 	big_int_substract(high, low, range);
+
+	// Guard: if range is 0 or low >= high, binary search has converged.
+	// Test both low and low+1 and pick the valid one.
+	if (BIG_INT_IS_ZERO(range) || big_int_greater_than(low, high) == 0x01)
+	{
+		big_int_reset(factor);
+		BIG_INT_COPY_FROM_TO(low, factor);
+		// Check if low works
+		big_int_reset(factor_x_N);
+		big_int_multiply(N, factor, factor_x_N);
+		if (big_int_greater_than_abs(M, factor_x_N) == 0x00)
+		{
+			// factor is too big, try low - 1
+			BIG_INT *lower = base_ctor();
+			big_int_substract(low, ONE, lower);
+			big_int_reset(factor);
+			BIG_INT_COPY_FROM_TO(lower, factor);
+			big_int_free(lower);
+		}
+		big_int_free(ONE);
+		big_int_free(range);
+		big_int_free(factor_x_N);
+		big_int_free(diff_M_minus_N);
+		return;
+	}
 
 	// Container for storing the division result.
 	division_result_t *division_result;
@@ -1128,10 +1190,10 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 	if (big_int_greater_than_abs(factor_x_N, diff_M_minus_N) == 0x01 && big_int_greater_than_abs(M, factor_x_N) == 0x01)
 	{
 		{
-			free(ONE);
-			free(range);
-			free(factor_x_N);
-			free(diff_M_minus_N);
+			big_int_free(ONE);
+			big_int_free(range);
+			big_int_free(factor_x_N);
+			big_int_free(diff_M_minus_N);
 		}
 		printf("iterations=%ld\n", iterations);
 		return;
@@ -1149,11 +1211,11 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 
 			big_int_substract(tmp, ONE, high);
 			{
-				free(tmp);
-				free(ONE);
-				free(range);
-				free(factor_x_N);
-				free(diff_M_minus_N);
+				big_int_free(tmp);
+				big_int_free(ONE);
+				big_int_free(range);
+				big_int_free(factor_x_N);
+				big_int_free(diff_M_minus_N);
 			}
 			big_int_reset(factor);
 			return big_int_factor_between_m_and_n(M, N, high, low, factor, iterations + 1L);
@@ -1168,11 +1230,11 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 			big_int_sum(tmp, ONE, low);
 
 			{
-				free(tmp);
-				free(ONE);
-				free(range);
-				free(factor_x_N);
-				free(diff_M_minus_N);
+				big_int_free(tmp);
+				big_int_free(ONE);
+				big_int_free(range);
+				big_int_free(factor_x_N);
+				big_int_free(diff_M_minus_N);
 			}
 			big_int_reset(factor);
 			return big_int_factor_between_m_and_n(M, N, high, low, factor, iterations + 1L);
@@ -1352,26 +1414,20 @@ static uint16_t insert_at(BIG_INT *big_int, uint8_t value, uint16_t index)
  */
 void clean_zero_in_front(BIG_INT *big_int)
 {
-	while (big_int->digits[0] == '0' && big_int->length > 1)
+	uint32_t skip = 0;
+	while (skip < big_int->length - 1 && big_int->digits[skip] == '0')
 	{
-		big_int->digits++;
-		big_int->length--;
+		skip++;
+	}
+	if (skip > 0)
+	{
+		memmove(big_int->digits, big_int->digits + skip, big_int->length - skip);
+		big_int->length -= skip;
+		memset(big_int->digits + big_int->length, '\0', skip);
 	}
 }
 
-static uint8_t is_valid_hex_string(uint8_t *str, uint16_t len)
-{
-	for (int i = 0; i < len; i++)
-	{
-		if (0x01 ^ (IS_DIGIT(str[i]) | IS_HEXALPH(str[i])) == 1)
-		{
-			printf("Invalid Hex:%s \n", str);
 
-			return 0x00;
-		}
-	}
-	return 0x01;
-}
 
 /**
  * @brief mod of M % N
@@ -1382,58 +1438,272 @@ static uint8_t is_valid_hex_string(uint8_t *str, uint16_t len)
  */
 void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R)
 {
-	// When M % N and N larger than M then, M % N is M.
+	// Case: N is zero — undefined, just return 0.
+	if (BIG_INT_IS_ZERO(N))
+	{
+		INITIALIZE_BIG_INT_TO(R, '0', 1);
+		return;
+	}
+	// Case: M == N → remainder is 0.
+	if (BIG_INT_ARE_SAME(M, N))
+	{
+		INITIALIZE_BIG_INT_TO(R, '0', 1);
+		return;
+	}
+	// Case: N > M → remainder is M.
 	if (big_int_greater_than_abs(N, M) == 0x01)
 	{
 		BIG_INT_COPY_FROM_TO(M, R);
 		return;
 	}
-	// high
-	BIG_INT *high = base_ctor();
-	BIG_INT_COPY_FROM_TO(M, high);
-	// Low
-	BIG_INT *low = base_ctor();
-	ctor_char("0", low);
 
-	BIG_INT *factor = base_ctor();
-	big_int_factor_between_m_and_n(M, N, high, low, factor, 0L);
-	// PRINT_BIG_INT(factor);
+	// Long division algorithm: bring down one digit at a time from M.
+	// remainder starts at 0. For each digit of M, append it to remainder,
+	// then subtract N from remainder while remainder >= N.
+	BIG_INT *remainder = base_ctor();
+	ctor_char("0", remainder);
 
-	BIG_INT *factor_x_N = base_ctor();
-	big_int_multiply(N, factor, factor_x_N);
+	BIG_INT *ten = base_ctor();
+	ctor_char("10", ten);
 
-	BIG_INT *diff_with_M = base_ctor();
-	big_int_substract(M, factor_x_N, diff_with_M);
+	BIG_INT *digit_val = base_ctor();
+	BIG_INT *tmp = base_ctor();
 
-	BIG_INT_COPY_FROM_TO(diff_with_M, R);
-	free(high);
-	free(low);
-	free(factor);
-	free(factor_x_N);
-	free(diff_with_M);
+	for (uint32_t i = 0; i < M->length; i++)
+	{
+		// remainder = remainder * 10 + M->digits[i]
+		big_int_reset(tmp);
+		big_int_multiply(remainder, ten, tmp);
+
+		big_int_reset(digit_val);
+		ctor_int(M->digits[i] - '0', digit_val);
+
+		big_int_reset(remainder);
+		big_int_sum(tmp, digit_val, remainder);
+
+		// Subtract N from remainder while remainder >= N
+		while (big_int_greater_than_abs(remainder, N) == 0x01 || BIG_INT_ARE_SAME(remainder, N))
+		{
+			big_int_reset(tmp);
+			big_int_substract(remainder, N, tmp);
+			big_int_reset(remainder);
+			BIG_INT_COPY_FROM_TO(tmp, remainder);
+		}
+	}
+
+	BIG_INT_COPY_FROM_TO(remainder, R);
+	big_int_free(remainder);
+	big_int_free(ten);
+	big_int_free(digit_val);
+	big_int_free(tmp);
 }
 
 void big_int_gcd(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 {
-	while (BIG_INT_IS_ZERO(A))
+	BIG_INT *a_copy = base_ctor();
+	BIG_INT *b_copy = base_ctor();
+	BIG_INT_COPY_FROM_TO(A, a_copy);
+	BIG_INT_COPY_FROM_TO(B, b_copy);
+
+	while (!BIG_INT_IS_ZERO(b_copy))
 	{
-		// PRINT_BIG_INT(B);
-		BIG_INT *modulus_of_B_and_A = base_ctor();
-		big_int_mod(B, A, modulus_of_B_and_A);
+		BIG_INT *modulus = base_ctor();
+		big_int_mod(a_copy, b_copy, modulus);
 
-		big_int_reset(A);
+		BIG_INT_COPY_FROM_TO(b_copy, a_copy);
+		BIG_INT_COPY_FROM_TO(modulus, b_copy);
 
-		BIG_INT_COPY_FROM_TO(A, B);
-
-		big_int_reset(B);
-		// PRINT_BIG_INT(modulus_of_A_and_B);
-		BIG_INT_COPY_FROM_TO(modulus_of_B_and_A, A);
-
-		free(modulus_of_B_and_A);
+		big_int_free(modulus);
 	}
 
-	BIG_INT_COPY_FROM_TO(A, R);
-	return;
+	BIG_INT_COPY_FROM_TO(a_copy, R);
+	big_int_free(a_copy);
+	big_int_free(b_copy);
+}
+
+/**
+ * @brief Modular exponentiation (base^exp % mod)
+ */
+void big_int_mod_pow(BIG_INT *base, BIG_INT *exp, BIG_INT *mod, BIG_INT *R)
+{
+	if (BIG_INT_IS_ZERO(mod))
+		return;
+	if (BIG_INT_IS_ZERO(exp))
+	{
+		ctor_char("1", R);
+		return;
+	}
+
+	BIG_INT *res = base_ctor();
+	ctor_char("1", res);
+
+	BIG_INT *b = base_ctor();
+	big_int_mod(base, mod, b);
+
+	uint8_t *bits = big_int_to_bits(exp);
+	uint16_t len = 0;
+	while (bits[len] != '\0')
+		len++;
+
+	BIG_INT *tmp = base_ctor();
+
+	for (int i = len - 1; i >= 0; i--)
+	{
+		if (bits[i] == '1')
+		{
+			big_int_multiply(res, b, tmp);
+			big_int_reset(res);
+			big_int_mod(tmp, mod, res);
+			big_int_reset(tmp);
+		}
+		big_int_multiply(b, b, tmp);
+		big_int_reset(b);
+		big_int_mod(tmp, mod, b);
+		big_int_reset(tmp);
+	}
+
+	BIG_INT_COPY_FROM_TO(res, R);
+	free(bits);
+	big_int_free(res);
+	big_int_free(b);
+	big_int_free(tmp);
+}
+
+/**
+ * @brief Miller-Rabin primality test.
+ */
+bool big_int_miller_rabin(BIG_INT *n, int k)
+{
+	if (BIG_INT_IS_ZERO(n) || BIG_INT_IS_ONE(n))
+		return false;
+
+	// Small primes: Miller-Rabin requires n > 3 to have a valid witness range [2, n-2].
+	BIG_INT *_two = base_ctor();
+	BIG_INT *_three = base_ctor();
+	ctor_char("2", _two);
+	ctor_char("3", _three);
+	if (BIG_INT_ARE_SAME(n, _two) || BIG_INT_ARE_SAME(n, _three))
+	{
+		big_int_free(_two);
+		big_int_free(_three);
+		return true;
+	}
+	big_int_free(_two);
+	big_int_free(_three);
+
+	// n-1 = 2^s * d
+	BIG_INT *n_minus_1 = base_ctor();
+	BIG_INT *one = base_ctor();
+	ctor_char("1", one);
+	big_int_substract(n, one, n_minus_1);
+
+	BIG_INT *d = base_ctor();
+	BIG_INT_COPY_FROM_TO(n_minus_1, d);
+
+	int s = 0;
+	division_result_t *div_res;
+	while (is_even(d->digits[d->length - 1]))
+	{
+		DIVISION_RESULT_FACTORY(div_res);
+		big_int_divide_by_2(d, div_res);
+		big_int_reset(d);
+		BIG_INT_COPY_FROM_TO(div_res->quotient, d);
+		big_int_free(div_res->quotient);
+		big_int_free(div_res->remaining);
+		free(div_res);
+		s++;
+	}
+
+	BIG_INT *two = base_ctor();
+	ctor_char("2", two);
+	BIG_INT *n_minus_2 = base_ctor();
+	big_int_substract(n_minus_1, one, n_minus_2);
+
+	for (int i = 0; i < k; i++)
+	{
+		BIG_INT *a = base_ctor();
+		big_int_random_in_range(two, n_minus_2, a);
+
+		BIG_INT *x = base_ctor();
+		big_int_mod_pow(a, d, n, x);
+
+		if (BIG_INT_IS_ONE(x) || BIG_INT_ARE_SAME(x, n_minus_1))
+		{
+			big_int_free(a);
+			big_int_free(x);
+			continue;
+		}
+
+		bool composite = true;
+		for (int r = 0; r < s - 1; r++)
+		{
+			BIG_INT *tmp_x = base_ctor();
+			big_int_multiply(x, x, tmp_x);
+			big_int_reset(x);
+			big_int_mod(tmp_x, n, x);
+			big_int_free(tmp_x);
+
+			if (BIG_INT_ARE_SAME(x, n_minus_1))
+			{
+				composite = false;
+				break;
+			}
+		}
+
+		if (composite)
+		{
+			big_int_free(a);
+			big_int_free(x);
+			big_int_free(n_minus_1);
+			big_int_free(one);
+			big_int_free(d);
+			big_int_free(two);
+			big_int_free(n_minus_2);
+			return false;
+		}
+		big_int_free(a);
+		big_int_free(x);
+	}
+
+	big_int_free(n_minus_1);
+	big_int_free(one);
+	big_int_free(d);
+	big_int_free(two);
+	big_int_free(n_minus_2);
+	return true;
+}
+
+/**
+ * @brief Public interface for primality test.
+ */
+bool big_int_is_prime(BIG_INT *n, int k)
+{
+	if (BIG_INT_IS_ZERO(n) || BIG_INT_IS_ONE(n))
+		return false;
+
+	BIG_INT *two = base_ctor();
+	ctor_char("2", two);
+	BIG_INT *three = base_ctor();
+	ctor_char("3", three);
+
+	if (BIG_INT_ARE_SAME(n, two) || BIG_INT_ARE_SAME(n, three))
+	{
+		big_int_free(two);
+		big_int_free(three);
+		return true;
+	}
+
+	if (is_even(n->digits[n->length - 1]))
+	{
+		big_int_free(two);
+		big_int_free(three);
+		return false;
+	}
+	printf("Testing primality for:%s\n", n->digits);
+	bool result = big_int_miller_rabin(n, k);
+	big_int_free(two);
+	big_int_free(three);
+	return result;
 }
 
 /**
@@ -1461,9 +1731,9 @@ static bool is_even(char c)
  */
 void big_int_random(int n, BIG_INT *BN)
 {
+	
 	// Calculate the total of bytes of the random number.
 	uint16_t total_of_bytes = n / 8;
-	
 	// Implementation to consider number smaller than 8 bits.
 	if (total_of_bytes == 0)
 		total_of_bytes = 1;
@@ -1475,11 +1745,15 @@ void big_int_random(int n, BIG_INT *BN)
 	memset(stream_of_bytes, '\0', total_of_bytes);
 	// Main logic: Store in i each random byte.
 	get_OS_entropy(stream_of_bytes, total_of_bytes);
-	// A containter for the hex of the converstion of bytes to hexadecimal. +2 is for '0X'
-	uint8_t *hex = malloc(sizeof(uint8_t) * ((total_of_bytes * 2) + 2));
-	memset(hex, '\0', (total_of_bytes * 2) + 2);
+
+	// A containter for the hex of the converstion of bytes to hexadecimal.
+	// Each byte becomes 2 hex chars, +2 for '0x' prefix, +1 for null terminator.
+	uint16_t hex_len = total_of_bytes * 2 + 2 + 1;
+	uint8_t *hex = malloc(sizeof(uint8_t) * hex_len);
+	memset(hex, '\0', hex_len);
 	// Implementation to reserve the pointer off 0X hexadecimal at the begining.
 	hex = hex + 2;
+	
 	// Convert the bytes to hex decimal, since on December 01, 2024, there no function bytes_to_big_int()
 	bytes_to_hex(stream_of_bytes, hex, total_of_bytes);
 	// Move back the pointer so that we can include the 0X on the convertion hex_to_big_int
@@ -1488,7 +1762,7 @@ void big_int_random(int n, BIG_INT *BN)
 	hex[0] = '0';
 	hex[1] = 'x';
 	// Convertion of the hex to BN.
-	ctor_hex(hex, BN);
+	ctor_hex(hex, BN, total_of_bytes);
 	free(hex);
 	free(stream_of_bytes);
 };
@@ -1504,35 +1778,48 @@ void big_int_random(int n, BIG_INT *BN)
 void big_int_random_in_range(BIG_INT *start, BIG_INT *end, BIG_INT *R)
 {
 
-	uint8_t *array_bits_of_start_number = (uint8_t *)big_int_to_bits(start);
 	uint8_t *array_bits_of_end_number = (uint8_t *)big_int_to_bits(end);
 
-	int len_of_start = 0;
-	while (*(array_bits_of_start_number++) != '\0')
-		len_of_start++;
-	array_bits_of_start_number -= len_of_start + 1;
-
 	int len_of_end = 0;
-	while (*(array_bits_of_end_number++) != '\0')
+	while (array_bits_of_end_number[len_of_end] != '\0')
 		len_of_end++;
-	array_bits_of_end_number -= len_of_end + 1;
+
+	// We need a random number with approximately len_of_end bits.
+	// Round up to nearest multiple of 8 to get the byte count.
+	int bits_needed = len_of_end;
+	if (bits_needed < 8) bits_needed = 8;
 
 	BIG_INT *random_number = base_ctor();
-	int n = (len_of_end - len_of_start) + 8;
+	BIG_INT *range = base_ctor();
+	BIG_INT *mod_result = base_ctor();
 
+	// range = end - start
+	big_int_substract(end, start, range);
+
+	int attempts = 0;
 	do
 	{
 		big_int_reset(random_number);
-		++n;
-		big_int_random(len_of_start  + n, random_number);
-		// Implementation to go down on bits to that we keep generating random random.
-		if (n >= len_of_end)n = n - 1;
-		PRINT_BIG_INT(random_number);
+		big_int_reset(mod_result);
+		// Generate random number with bits_needed bits.
+		big_int_random(bits_needed, random_number);
+		// Reduce random_number into the range via modulo: random_number % range
+		big_int_mod(random_number, range, mod_result);
+		// result = mod_result + start (shifts into [start, end) range)
+		big_int_reset(random_number);
+		big_int_sum(mod_result, start, random_number);
 
-	} while ( big_int_greater_than(end, random_number) == 0x00 || big_int_greater_than(random_number, start) == 0x00);
+		attempts++;
+		// Safety: if after many attempts we still fail, just use what we have.
+		if (attempts > 100) break;
+
+	} while (big_int_greater_than(end, random_number) == 0x00 || big_int_greater_than(random_number, start) == 0x00);
 
 	BIG_INT_COPY_FROM_TO(random_number, R);
-	free(array_bits_of_start_number);
+
+	big_int_free(random_number);
+	big_int_free(range);
+	big_int_free(mod_result);
 	free(array_bits_of_end_number);
 }
 
@@ -1585,13 +1872,16 @@ uint8_t *big_int_to_bits(BIG_INT *BN)
 		printf("\n\n");
 
 #endif
-		big_int_reset(division_result->quotient);
-		big_int_reset(division_result->remaining);
+		big_int_free(division_result->quotient);
+		big_int_free(division_result->remaining);
 		free(division_result);
 		i++;
 	}
 	// Reverse the array of bits.
 	reverse_array_of_uint8(stream_of_bits, i);
+
+	big_int_free(quotient);
+	big_int_free(numerator);
 	return stream_of_bits;
 #ifdef DEBUG_TO_BITS
 	printf("%s\n", stream_of_bits);

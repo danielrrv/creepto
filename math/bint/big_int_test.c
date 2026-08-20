@@ -91,41 +91,47 @@ void test_should_ctor_char()
 
 void test_should_ctor_hex()
 {
+
+	
 	BIG_INT *bg_hex = base_ctor();
 	uint8_t hex[] = "0x12AF";
-	ctor_hex(hex, bg_hex);
+
+	is_valid_hex_string(hex, 3);
+	ctor_hex(hex, bg_hex, 2);
+
 	assert(bg_hex != NULL);
 	printf("%s\n", bg_hex->digits);
 	assert(strncmp("4783", bg_hex->digits, 4) == 0);
 	big_int_reset(bg_hex);
 
 	uint8_t hex1[] = "0x1CFF4B";
-	ctor_hex(hex1, bg_hex);
+	ctor_hex(hex1, bg_hex, 3);
 	assert(bg_hex != NULL);
 	assert(strncmp("1900363", bg_hex->digits, 7) == 0);
 
 	big_int_reset(bg_hex);
 
 	uint8_t long_hex[] = "0x3077020101042032fcda8a20f7de2978ba5a7ad9887e7b81618f77514faf1eacfe7ddbe1187a7ca00a06082a8648ce3d030107a14403420004a0cffedb4cdd8553056bc7aa8a0314fe5483a319e916806312fc71f7ec6ac2b148ba5d422da43a566712d855b3b4ae01b699a71b5d70339c3948216aa52c27d7";
-	ctor_hex(long_hex, bg_hex);
+	ctor_hex(long_hex, bg_hex, 121);
 	assert(bg_hex != NULL);
 
 	assert(strncmp("472305418843739925399625973718970121118085593821873518651594271086235015341628156078009264613178331080967081039326592229882390127680120708148032206144736185603283558283366416159253816347376070235256462268014720308344862496323012927047808841423456009880897273896486895472483359061615519213527", bg_hex->digits, 22) == 0);
 	big_int_reset(bg_hex);
 
-	uint8_t long_not_x_started[] = "307fe3e";
-	ctor_hex(long_not_x_started, bg_hex);
+	uint8_t long_not_x_started[] = "037fe333";
+	ctor_hex(long_not_x_started, bg_hex,4);
 	// assert(bg_hex == NULL);
 	big_int_reset(bg_hex);
 
 	uint8_t incorrect[] = "0x1CFT4B";
-	ctor_hex(incorrect, bg_hex);
+	ctor_hex(incorrect, bg_hex, 3);
 	printf("[%d]\n", bg_hex == NULL);
 	// assert(bg_hex == NULL);
 	printf("==> test_should_ctor_hex[passed]\n");
 
 	free(bg_hex);
 }
+
 
 void test_should_ctor_binary()
 {
@@ -1019,7 +1025,8 @@ void test_should_big_int_gcd()
 void test_should_big_int_random()
 {
 	BIG_INT *BN = base_ctor();
-	int n = 1024;
+	// number of bits
+	int n = 512 * 8;
 	big_int_random(n / 2, BN);
 	assert(BN != NULL);
 
@@ -1076,6 +1083,80 @@ void test_should_big_int_to_bits()
 
 // 10101110111101001010100100001001
 
+
+void test_big_int_miller_rabin(){
+	BIG_INT *  bn = base_ctor();
+	ctor_char("5", bn);
+	int k = 10;
+	assert(big_int_miller_rabin(bn,10) == true);
+	printf("==>test_big_int_miller_rabin[passed]\n");
+	big_int_free(bn);
+};
+
+void test_should_is_prime()
+{
+	BIG_INT *n = base_ctor();
+
+	// Test 2 (prime)
+	ctor_char("2", n);
+	assert(big_int_is_prime(n, 10) == true);
+	big_int_reset(n);
+
+	// Test 3 (prime)
+	ctor_char("3", n);
+	assert(big_int_is_prime(n, 10) == true);
+	big_int_reset(n);
+
+	// // Test 17 (prime)
+	ctor_char("17", n);
+	assert(big_int_is_prime(n, 10) == true);
+	big_int_reset(n);
+
+	// // Test 15 (composite)
+	// ctor_char("15", n);
+	// assert(big_int_is_prime(n, 10) == false);
+
+	// // Test 97 (prime)
+	// ctor_char("97", n);
+	// assert(big_int_is_prime(n, 10) == true);
+
+	// // Test 99 (composite)
+	// ctor_char("99", n);
+	// assert(big_int_is_prime(n, 10) == false);
+
+	// // Test a larger prime: 104729
+	// ctor_char("104729", n);
+	// assert(big_int_is_prime(n, 10) == true);
+
+	// // Test 4294967291 (Largest 32-bit prime)
+	// ctor_char("4294967291", n);
+	// assert(big_int_is_prime(n, 10) == true);
+
+	// // Test 4294967295 (Composite: 3 * 5 * 17 * 257 * 65537)
+	// ctor_char("4294967295", n);
+	// assert(big_int_is_prime(n, 10) == false);
+
+	// // Test 18446744073709551557 (Largest 64-bit prime)
+	// ctor_char("18446744073709551557", n);
+	// assert(big_int_is_prime(n, 10) == true);
+
+	// // Test 18446744073709551615 (Composite: 2^64 - 1)
+	// ctor_char("18446744073709551615", n);
+	// assert(big_int_is_prime(n, 10) == false);
+
+	// // Test 170141183460469231731687303715884105727 (Mersenne prime 2^127 - 1)
+	ctor_char("170141183460469231731687303715884105727", n);
+	assert(big_int_is_prime(n, 10) == true);
+	big_int_reset(n);
+
+	// // Test 170141183460469231731687303715884105729 (Composite: 2^127 + 1)
+	ctor_char("170141183460469231731687303715884105729", n);
+	assert(big_int_is_prime(n, 10) == false);
+	big_int_reset(n);
+
+	printf("==>test_should_is_prime[passed]\n");
+	big_int_free(n);
+}
 int main()
 {
 
@@ -1130,6 +1211,12 @@ int main()
 #endif
 #ifdef BIG_INT_TO_BITS
 	test_should_big_int_to_bits();
+#endif
+#ifdef IS_PRIME
+	test_should_is_prime();
+#endif
+#ifdef RABIN_MILLER
+	test_big_int_miller_rabin();
 #endif
 	return 0;
 }

@@ -1,10 +1,12 @@
 CC = gcc
 
-libraries=-I ../utils -I ./random
+libraries=-I ../utils -I ./random -I ./hex
 substract:  bint/big_int_test.c
 	$(CC) $^ $(libraries) -o bint/big_int_test.o -DSUBSTRACT  && ./bint/big_int_test.o	
 ctor_binary: bint/big_int_test.c
 	$(CC) $^   $(libraries) -o bint/big_int_test.o -DCTOR_BINARY -DDEBUG_CTOR_BINARY  && ./bint/big_int_test.o
+ctor_hex: bint/big_int_test.c
+	$(CC) $^ $(libraries) -o bint/big_int_test.o -D HEX_ONLY && ./bint/big_int_test.o 
 division: bint/big_int_test.c
 	$(CC) $^ $(libraries) -o bint/big_int_test.o -D DIVISION_ONLY && ./bint/big_int_test.o
 division_debug: bint/big_int_test.c
@@ -23,9 +25,16 @@ gcd: bint/big_int_test.c
 	$(CC) $^ $(libraries) -o bint/big_int_test.o -DGCD && ./bint/big_int_test.o
 random_big_int:bint/big_int_test.c
 	$(CC) $^ -DRAND $(libraries) -o bint/big_int_test.o && ./bint/big_int_test.o  
-big_int_to_bits:bint/big_int_test.c
+big_int_to_bits: bint/big_int_test.c
 	$(CC) $^ -DBIG_INT_TO_BITS   $(libraries) -o bint/big_int_test.o && ./bint/big_int_test.o 
+is_prime: bint/big_int_test.c
+	$(CC) $^ -DIS_PRIME $(libraries) -o bint/big_int_test.o && ./bint/big_int_test.o
+rabin_miller: bint/big_int_test.c
+	$(CC) $^ -DRABIN_MILLER $(libraries) -o bint/big_int_test.o && ./bint/big_int_test.o
 entropy: random/random_test.c
 	$(CC) $^ $(libraries) -o random/random_test.o && ./random/random_test.o
+hex: hex/hex_test.c
+	$(CC) $^ $(libraries) -o hex/hex_test.o && ./hex/hex_test.o
+	
 clean:
 	rm bint/big_int_test.o random/random_test.o
