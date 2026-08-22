@@ -1,4 +1,5 @@
 package bint.utility;
+import java.io.BufferedWriter;
 import java.io.FileWriter; 
 import java.io.IOException; 
 
@@ -7,8 +8,7 @@ public class MetaTest {
 	public static void main(String[] args) {
 		
 
-		try {
-			FileWriter sumFile = new FileWriter("sum.txt"); 
+		try(BufferedWriter sumFile = new BufferedWriter(new FileWriter("sum.txt"))) {			
 			sumFile.write("BIG_INT * A = base_ctor();");
 			sumFile.write("BIG_INT * B = base_ctor();");
 			sumFile.write("BIG_INT * R = base_ctor();");
