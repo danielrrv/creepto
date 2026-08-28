@@ -1141,8 +1141,8 @@ void test_should_is_prime()
 	// assert(big_int_is_prime(n, 10) == true);
 
 	// // Test 18446744073709551615 (Composite: 2^64 - 1)
-	// ctor_char("18446744073709551615", n);
-	// assert(big_int_is_prime(n, 10) == false);
+	ctor_char("18446744073709551615", n);
+	assert(big_int_is_prime(n, 10) == false);
 
 	// // Test 170141183460469231731687303715884105727 (Mersenne prime 2^127 - 1)
 	ctor_char("170141183460469231731687303715884105727", n);
@@ -1157,6 +1157,55 @@ void test_should_is_prime()
 	printf("==>test_should_is_prime[passed]\n");
 	big_int_free(n);
 }
+
+void test_big_int_lcm(){
+	BIG_INT ZERO = {
+			.digits = (uint8_t[]){'0'},
+			.length = (uint32_t)1,
+			.sign = '+'
+		};
+
+	division_result_t  * division_result;
+	DIVISION_RESULT_FACTORY(division_result);
+	BIG_INT * A = base_ctor();
+	BIG_INT * B = base_ctor();
+	ctor_char("10", A);
+	ctor_char("20", B);
+
+	BIG_INT * lcm = base_ctor();
+	ctor_char("20", lcm);
+
+	big_int_lcm(A, B, division_result);
+	assert(NONE==division_result->error);
+	assert(BIG_INT_ARE_SAME(division_result->quotient, lcm));
+	
+	big_int_reset(lcm);
+	big_int_reset(A);
+	big_int_reset(B);
+	big_int_reset(division_result->quotient);
+	big_int_reset(division_result->remaining);
+
+	
+	ctor_char("3324298954062642979937715273000088457741871468238391929188212688", A);
+	ctor_char("157624825433230490762246168127797657567916321816555529634539929", B);
+	ctor_char("58221338035777200673237925460604220903633206904137006891090349078113224157959614611295413565709747107245263315068162075602128", lcm);
+	
+	big_int_lcm(A, B, division_result);
+	assert(NONE==division_result->error);
+	assert(BIG_INT_ARE_SAME(division_result->quotient, lcm));
+
+	big_int_free(A);
+	big_int_free(B);
+	big_int_free(lcm);
+
+	DIVISION_RESULT_DEINIT(division_result);
+
+
+	printf("==>test_big_int_lcm[passed]\n");
+
+}
+
+
 int main()
 {
 
@@ -1217,6 +1266,9 @@ int main()
 #endif
 #ifdef RABIN_MILLER
 	test_big_int_miller_rabin();
+#endif
+#ifdef LCM 
+	test_big_int_lcm();
 #endif
 	return 0;
 }

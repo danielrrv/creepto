@@ -9,7 +9,6 @@
 #include <math.h>
 #include "assert.h"
 #include "hex.h"
-#include "utils.h"
 #include <time.h>
 #include "random.h"
 
@@ -38,7 +37,13 @@
 #define STR(S) #S
 #define PRINT_BIG_INT(A) printf("L%d\tname=%s\t digits=%s\tlen(%s)=%d\n", __LINE__, STR(A), A->digits, STR(A), A->length)
 
-#define PRINT_BYTES(ptr, size)printf("[");for (int i = 0;i < size;i++){printf("%d ", ptr[i]);}printf("]\n");
+#define PRINT_BYTES(ptr, size)     \
+	printf("[");                   \
+	for (int i = 0; i < size; i++) \
+	{                              \
+		printf("%d ", ptr[i]);     \
+	}                              \
+	printf("]\n");
 
 #define DIVISION_RESULT_FACTORY(division_result)                              \
 	division_result = (division_result_t *)malloc(sizeof(division_result_t)); \
@@ -46,11 +51,17 @@
 	division_result->remaining = base_ctor();                                 \
 	ctor_char("0", division_result->remaining);
 
+#define DIVISION_RESULT_DEINIT(division_result) \
+	free(division_result->quotient);            \
+	free(division_result->remaining);           \
+	free(division_result);
+
 #define TO_BOOL(c) (c == 0x01)
 typedef enum error_type
 {
 	DIVISION_BY_ZERO = 1,
-	DIVISOR_GREATER_THAN_DIVIDEND
+	DIVISOR_GREATER_THAN_DIVIDEND,
+	NONE
 } error_type_e;
 
 typedef struct BIG_INT
@@ -126,6 +137,7 @@ void big_int_root_square(BIG_INT *, BIG_INT *);
 void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R);
 void big_int_mod_pow(BIG_INT *base, BIG_INT *exp, BIG_INT *mod, BIG_INT *R);
 void big_int_gcd(BIG_INT *, BIG_INT *, BIG_INT *);
+void big_int_lcm(BIG_INT *, BIG_INT *, division_result_t *);
 void big_int_random(int n, BIG_INT *BN);
 void big_int_random_in_range(BIG_INT *start, BIG_INT *end, BIG_INT *R);
 uint8_t *big_int_to_bits(BIG_INT *BN);
@@ -154,6 +166,10 @@ void toString(int number, uint8_t *str);
 
 // Utils
 static uint16_t insert_at(BIG_INT *, uint8_t, uint16_t);
+void reverse_array_of_uint8(uint8_t *arr, size_t size);
+uint8_t *bytes_to_bits(uint8_t *bytes) {};
+uint8_t *bits_to_bytes(uint8_t *bits) {};
+
 uint8_t invert_sign(uint8_t sign)
 {
 	return sign == '+' ? '-' : '+';
@@ -302,7 +318,7 @@ void ctor_int(int number, BIG_INT *R)
  */
 void ctor_hex(uint8_t *hex, BIG_INT *r, uint16_t size)
 {
-	
+
 	// Exception #1: hex shouldn't be null.
 	if (hex == NULL)
 	{
@@ -322,9 +338,9 @@ void ctor_hex(uint8_t *hex, BIG_INT *r, uint16_t size)
 	}
 	uint16_t len = size * 2;
 	// Exception # 3: the characters must be alphanumeric from [0-9-aA-fF].
-	
 
-	if (is_valid_hex_string(hex, len) == 0x00)return;
+	if (is_valid_hex_string(hex, len) == 0x00)
+		return;
 	// What it is for: track the power result as intermidiate factor for the final multiplication later on.
 	BIG_INT *power = base_ctor();
 	// What it is for: track the decimal result which is the function pointer return.
@@ -341,7 +357,7 @@ void ctor_hex(uint8_t *hex, BIG_INT *r, uint16_t size)
 	ctor_char("0", power);
 	ctor_char("16", sixteen);
 	ctor_char("1", product);
-	
+
 	// Each digit of the hex array it is a value for the computation.
 	for (size_t i = 0; 0 < len; i++, len--)
 	{
@@ -394,7 +410,7 @@ void ctor_hex(uint8_t *hex, BIG_INT *r, uint16_t size)
 #ifdef DEBUG_CTOR_HEX
 	printf("hex:%s, %s\n", hex, r->digits);
 #endif
-	
+
 	big_int_free(decimal);
 	big_int_free(sixteen);
 	big_int_free(power);
@@ -898,19 +914,21 @@ void big_int_multiply(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 
 /// @brief A divided by B.
 /// @param A numerator
-/// @param B divident
-/// @param division_result
+/// @param B denominator
+/// A > B
+/// @param division_result initialized already.
 void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 {
-
 	//![Exception # 1] Division by zero.
 	if (BIG_INT_IS_ZERO(B))
 	{
+		BIG_INT ZERO = {
+			.digits = (uint8_t[]){'0'},
+			.length = (uint32_t)1,
+			.sign = '+'};
 		printf("Exception: Divinding by zero.\n");
-		division_result->quotient = base_ctor();
-		ctor_char("0", division_result->quotient);
-		division_result->remaining = base_ctor();
-		ctor_char("0", division_result->remaining);
+		BIG_INT_COPY_FROM_TO((&ZERO), division_result->quotient);
+		BIG_INT_COPY_FROM_TO((&ZERO), division_result->remaining);
 		division_result->error = DIVISION_BY_ZERO;
 
 		// return division_result;
@@ -948,10 +966,13 @@ void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 
 	BIG_INT *factor_x_A = base_ctor();
 	BIG_INT *diff = base_ctor();
-	big_int_multiply(factor, A, factor_x_A);
-	big_int_substract(B, factor_x_A, diff);
+
+	big_int_multiply(factor, B, factor_x_A);
+
+	big_int_substract(A, factor_x_A, diff);
 	BIG_INT_COPY_FROM_TO(factor, division_result->quotient);
 	BIG_INT_COPY_FROM_TO(diff, division_result->remaining);
+	division_result->error = NONE;
 
 	big_int_free(factor);
 	big_int_free(factor_x_A);
@@ -1405,7 +1426,6 @@ static uint16_t insert_at(BIG_INT *big_int, uint8_t value, uint16_t index)
 	big_int->length++;
 	return index;
 }
-#endif //  CREEPTO_BIG_INT_H
 
 /**
  * @brief  clear any zero at front of the array of digits.
@@ -1426,8 +1446,6 @@ void clean_zero_in_front(BIG_INT *big_int)
 		memset(big_int->digits + big_int->length, '\0', skip);
 	}
 }
-
-
 
 /**
  * @brief mod of M % N
@@ -1519,6 +1537,41 @@ void big_int_gcd(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 	BIG_INT_COPY_FROM_TO(a_copy, R);
 	big_int_free(a_copy);
 	big_int_free(b_copy);
+}
+
+/**
+ *
+ * Produces the lcm(A, B);
+ * where lcm(A,B) = (A x B) / GCD(A,B)
+ * @param A
+ * @param B
+ * @param division_result
+ *
+ *
+ */
+void big_int_lcm(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
+{
+
+	BIG_INT *a_copy = base_ctor();
+	BIG_INT *b_copy = base_ctor();
+	BIG_INT_COPY_FROM_TO(A, a_copy);
+	BIG_INT_COPY_FROM_TO(B, b_copy);
+
+	BIG_INT *axb = base_ctor();
+	BIG_INT *gcd_of_a_b = base_ctor();
+
+	big_int_multiply(a_copy, b_copy, axb);
+	PRINT_BIG_INT(axb);
+
+	big_int_gcd(a_copy, b_copy, gcd_of_a_b);
+	PRINT_BIG_INT(gcd_of_a_b);
+
+	big_int_divide(axb, gcd_of_a_b, division_result);
+
+	big_int_free(a_copy);
+	big_int_free(b_copy);
+	big_int_free(axb);
+	big_int_free(gcd_of_a_b);
 }
 
 /**
@@ -1731,7 +1784,7 @@ static bool is_even(char c)
  */
 void big_int_random(int n, BIG_INT *BN)
 {
-	
+
 	// Calculate the total of bytes of the random number.
 	uint16_t total_of_bytes = n / 8;
 	// Implementation to consider number smaller than 8 bits.
@@ -1753,7 +1806,7 @@ void big_int_random(int n, BIG_INT *BN)
 	memset(hex, '\0', hex_len);
 	// Implementation to reserve the pointer off 0X hexadecimal at the begining.
 	hex = hex + 2;
-	
+
 	// Convert the bytes to hex decimal, since on December 01, 2024, there no function bytes_to_big_int()
 	bytes_to_hex(stream_of_bytes, hex, total_of_bytes);
 	// Move back the pointer so that we can include the 0X on the convertion hex_to_big_int
@@ -1787,7 +1840,8 @@ void big_int_random_in_range(BIG_INT *start, BIG_INT *end, BIG_INT *R)
 	// We need a random number with approximately len_of_end bits.
 	// Round up to nearest multiple of 8 to get the byte count.
 	int bits_needed = len_of_end;
-	if (bits_needed < 8) bits_needed = 8;
+	if (bits_needed < 8)
+		bits_needed = 8;
 
 	BIG_INT *random_number = base_ctor();
 	BIG_INT *range = base_ctor();
@@ -1811,7 +1865,8 @@ void big_int_random_in_range(BIG_INT *start, BIG_INT *end, BIG_INT *R)
 
 		attempts++;
 		// Safety: if after many attempts we still fail, just use what we have.
-		if (attempts > 100) break;
+		if (attempts > 100)
+			break;
 
 	} while (big_int_greater_than(end, random_number) == 0x00 || big_int_greater_than(random_number, start) == 0x00);
 
@@ -1887,3 +1942,15 @@ uint8_t *big_int_to_bits(BIG_INT *BN)
 	printf("%s\n", stream_of_bits);
 #endif
 };
+
+void reverse_array_of_uint8(uint8_t *arr, size_t size)
+{
+	for (int i = 0; i < size / 2; i++)
+	{
+		int temp = arr[i];
+		arr[i] = arr[size - 1 - i];
+		arr[size - 1 - i] = temp;
+	}
+}
+
+#endif //  CREEPTO_BIG_INT_H
