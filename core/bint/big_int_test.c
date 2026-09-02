@@ -402,11 +402,15 @@ void test_should_substract()
 	big_int_reset(T);
 	big_int_reset(R);
 
-	ctor_char("10", A);
-	ctor_char("0", B);
-	ctor_char("10", T);
+	ctor_char("0", A);
+	ctor_char("10", B);
+	ctor_char("-10", T);
 	big_int_substract(A, B, R);
+	// PRINT_BIG_INT(R);
 	assert(strcmp(R->digits, T->digits) == 0);
+	 
+	assert(R->sign == '-');
+	
 	big_int_reset(A);
 	big_int_reset(B);
 	big_int_reset(T);
@@ -1206,6 +1210,37 @@ void test_big_int_lcm(){
 }
 
 
+void test_big_int_mod_inverse(){
+
+	
+	
+	BIG_INT * a = base_ctor();
+	BIG_INT * n =  base_ctor();
+	BIG_INT * t = base_ctor();
+
+	BIG_INT retT = {
+		.digits =  (uint8_t[]){'4', '1', '3'},
+		.length = 3,
+		.sign = '+'
+	};
+
+	ctor_char("17", a);
+	ctor_char("780", n);
+
+
+	int ret = big_int_mod_inverse(a, n, t);
+
+	assert(BIG_INT_ARE_SAME(t, (&retT)));
+
+	assert(ret==0);
+
+	big_int_free(a);
+	big_int_free(n);
+
+	printf("==>test_big_int_mod_inverse[passed]\n");
+}
+
+
 int main()
 {
 
@@ -1270,5 +1305,8 @@ int main()
 #ifdef LCM 
 	test_big_int_lcm();
 #endif
-	return 0;
+#ifdef MODULAR_INVERSE_MULTIPLICATIVE
+	test_big_int_mod_inverse();
+#endif
+return 0;
 }

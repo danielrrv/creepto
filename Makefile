@@ -37,5 +37,7 @@ hex: core/hex/hex_test.c
 	$(CC) $^ $(libraries) -o hex/hex_test.o && ./hex/hex_test.o
 lcm: core/bint/big_int_test.c
 	$(CC) $^ $(libraries) -o ./core/bint/big_int_test.o -DLCM && ./core/bint/big_int_test.o
+modular_inverse_multiplicative: core/bint/big_int_test.c
+	$(CC) $^ $(libraries) -o ./core/bint/big_int_test.o -D MODULAR_INVERSE_MULTIPLICATIVE && ./core/bint/big_int_test.o
 clean:
 	rm ./core/bint/big_int_test.o r./core/random/random_test.o

@@ -12,12 +12,31 @@
 #include <time.h>
 #include "random.h"
 
-// const a = 'd'
+
+//constants
+const uint16_t MAX_DIGIT_LENGHT = 4096;
+const uint8_t MAX_INT_DIGIT = 22;
+const uint8_t NINE = '9';
+const uint8_t BASE10 = 10;
+
+
+//Utils
 #define IS_DIGIT(c) (('0' <= c && c <= '9') ? 1 : 0)
 #define IS_HEXALPH(c) ((('a' <= c && c <= 'f') || ('A' <= c && c <= 'F')) ? 1 : 0)
+#define STR(S) #S
+#define TO_BOOL(c) (c == 0x01)
 
 #define ARRAY_LEN(array, length_val) \ while (*array != '\0') \
 	length_val++;
+
+
+// Declare the struct of a BIG_INT.
+typedef struct BIG_INT
+{
+	uint8_t *digits;
+	uint32_t length;
+	uint8_t sign;
+} BIG_INT;
 
 #define BIG_INT_IS_ZERO(big_int) (big_int->length == 1 && big_int->digits[0] == '0')
 #define BIG_INT_IS_ONE(big_int) (big_int->length == 1 && big_int->digits[0] == '1')
@@ -29,13 +48,15 @@
 	big_int->digits[0] = value;                                        \
 	big_int->length = lenght;
 
+// Copy BN from a to b
 #define BIG_INT_COPY_FROM_TO(a, b)           \
 	memcpy(b->digits, a->digits, a->length); \
 	b->length = a->length;                   \
 	b->sign = a->sign;
 
-#define STR(S) #S
-#define PRINT_BIG_INT(A) printf("L%d\tname=%s\t digits=%s\tlen(%s)=%d\n", __LINE__, STR(A), A->digits, STR(A), A->length)
+
+// Print BN
+#define PRINT_BIG_INT(A) printf("L%d\tname=%s\t digits=%s\tlen(%s)=%d\tsign=%c\n", __LINE__, STR(A), A->digits, STR(A), A->length, A->sign)
 
 #define PRINT_BYTES(ptr, size)     \
 	printf("[");                   \
@@ -45,31 +66,14 @@
 	}                              \
 	printf("]\n");
 
-#define DIVISION_RESULT_FACTORY(division_result)                              \
-	division_result = (division_result_t *)malloc(sizeof(division_result_t)); \
-	division_result->quotient = base_ctor();                                  \
-	division_result->remaining = base_ctor();                                 \
-	ctor_char("0", division_result->remaining);
 
-#define DIVISION_RESULT_DEINIT(division_result) \
-	free(division_result->quotient);            \
-	free(division_result->remaining);           \
-	free(division_result);
-
-#define TO_BOOL(c) (c == 0x01)
+// Division
 typedef enum error_type
 {
 	DIVISION_BY_ZERO = 1,
 	DIVISOR_GREATER_THAN_DIVIDEND,
 	NONE
 } error_type_e;
-
-typedef struct BIG_INT
-{
-	uint8_t *digits;
-	uint32_t length;
-	uint8_t sign;
-} BIG_INT;
 
 typedef struct division_result
 {
@@ -78,17 +82,43 @@ typedef struct division_result
 	error_type_e error;
 } division_result_t;
 
-typedef struct divisors
-{
-	BIG_INT **divisors;
-	BIG_INT *count;
-} divisors_t;
+// Intialize division result allocating BN for quotient and remaining.
+#define DIVISION_RESULT_FACTORY(division_result)                              \
+	division_result = (division_result_t *)malloc(sizeof(division_result_t)); \
+	division_result->quotient = base_ctor();                                  \
+	division_result->remaining = base_ctor();                                 
 
-const uint8_t ZERO = '0';
-const uint8_t NINE = '9';
-const uint8_t BASE10 = 10;
-const uint16_t MAX_DIGIT_LENGHT = 4096;
-const uint8_t MAX_INT_DIGIT = 22;
+// Reset the division result quotient BN and remaining BN are reset.
+#define DIVISION_RESULT_RESET(division_result)								\
+		big_int_reset(division_result->quotient);		 					\
+		big_int_reset(division_result->remaining );						
+
+// Free the division results and its quotient and remaining.
+#define DIVISION_RESULT_DEINIT(division_result) \
+	free(division_result->quotient);            \
+	free(division_result->remaining);           \
+	free(division_result);
+
+
+//Most known numbers
+BIG_INT ZERO = {
+	.digits = (uint8_t[]){'0'},
+	.length = (uint32_t)1,
+	.sign = '+'};
+
+BIG_INT ONE = {
+	.digits = (uint8_t[]){'1'},
+	.length = 1,
+	.sign = '+'};
+BIG_INT TWO = {
+	.digits = (uint8_t[]){'2'},
+	.length = 1,
+	.sign = '+'};
+BIG_INT THREE = {
+	.digits = (uint8_t[]){'3'},
+	.length = 1,
+	.sign = '+'};
+
 
 /**
  * @brief Create a simple BIG_INT object with ->length zero, ->digits undefined(allocate before accessing).
@@ -101,6 +131,7 @@ BIG_INT *base_ctor();
  *
  * @return BIG_INT*
  */
+
 void ctor_char(char *, BIG_INT *);
 void ctor_int(int, BIG_INT *);
 void ctor_long(long, BIG_INT *);
@@ -136,10 +167,12 @@ void big_int_power(BIG_INT *a, BIG_INT *x, BIG_INT *);
 void big_int_root_square(BIG_INT *, BIG_INT *);
 void big_int_mod(BIG_INT *M, BIG_INT *N, BIG_INT *R);
 void big_int_mod_pow(BIG_INT *base, BIG_INT *exp, BIG_INT *mod, BIG_INT *R);
+int big_int_mod_inverse(BIG_INT *a, BIG_INT *n, BIG_INT *t);
 void big_int_gcd(BIG_INT *, BIG_INT *, BIG_INT *);
 void big_int_lcm(BIG_INT *, BIG_INT *, division_result_t *);
 void big_int_random(int n, BIG_INT *BN);
 void big_int_random_in_range(BIG_INT *start, BIG_INT *end, BIG_INT *R);
+void big_int_random_prime(int n, BIG_INT *BN);
 uint8_t *big_int_to_bits(BIG_INT *BN);
 bool big_int_is_prime(BIG_INT *n, int k);
 bool big_int_miller_rabin(BIG_INT *n, int k);
@@ -154,15 +187,12 @@ static uint8_t apply_carry_if_apply(uint8_t *, uint8_t *);
 static void big_int_divide_by_2(BIG_INT *N, division_result_t *division_result);
 static bool is_even(char c);
 static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high, BIG_INT *low, BIG_INT *factor, unsigned long iterations);
-
-// uint8_t valid_integer_at()
+void clean_zero_in_front(BIG_INT *);
 
 // Comparisons
-
 uint8_t big_int_greater_than(const BIG_INT *a, const BIG_INT *b);
 uint8_t big_int_greater_than_abs(BIG_INT *A, BIG_INT *B);
-uint8_t big_int_equal_to(BIG_INT *a, BIG_INT *b);
-void toString(int number, uint8_t *str);
+
 
 // Utils
 static uint16_t insert_at(BIG_INT *, uint8_t, uint16_t);
@@ -175,7 +205,10 @@ uint8_t invert_sign(uint8_t sign)
 	return sign == '+' ? '-' : '+';
 }
 
-void clean_zero_in_front(BIG_INT *);
+
+
+
+
 
 /**
  * @brief Simple BIG_INT constructor.  ->digits allocated memset(0)
@@ -222,8 +255,8 @@ void ctor_char(char *cc, BIG_INT *R)
 	{
 		return;
 	}
-	int i = 0;
 
+	int i = 0;
 	while (*rr != '\0')
 	{
 
@@ -446,10 +479,7 @@ void ctor_binary(uint8_t *bits, BIG_INT *r)
 	BIG_INT *length = base_ctor();
 	// What is it for: track the current value of the iteration.
 	BIG_INT *current_value = base_ctor();
-	// 2 as big_int.
-	BIG_INT *two = base_ctor();
-	// 1 as big_int.
-	BIG_INT *one = base_ctor();
+	
 
 	ctor_char("1", power);
 	ctor_char("0", sum);
@@ -457,8 +487,6 @@ void ctor_binary(uint8_t *bits, BIG_INT *r)
 	ctor_char("0", iterator);
 	ctor_int(len, length);
 	ctor_char("0", current_value);
-	ctor_char("2", two);
-	ctor_char("1", one);
 
 	for (size_t i = 0; i < len; i++)
 	{
@@ -498,9 +526,9 @@ void ctor_binary(uint8_t *bits, BIG_INT *r)
 		// Apply (n - i)
 		big_int_substract(length, iterator, difference_n_minus_iterator);
 		// Apply (n - i - 1)
-		big_int_substract(difference_n_minus_iterator, one, difference_n_minus_iterator_minus_one);
+		big_int_substract(difference_n_minus_iterator, (&ONE), difference_n_minus_iterator_minus_one);
 		// Apply 2 ^ (n - i - 1)
-		big_int_power(two, difference_n_minus_iterator_minus_one, power);
+		big_int_power((&TWO), difference_n_minus_iterator_minus_one, power);
 		// Apply bits[i] *  2 ^ (n - i - 1)
 		big_int_multiply(current_value, power, product);
 		// What it does: prevent corruption on acumulating the sum of each iteration.
@@ -529,9 +557,6 @@ void ctor_binary(uint8_t *bits, BIG_INT *r)
 	big_int_free(iterator);
 	big_int_free(length);
 	big_int_free(current_value);
-
-	big_int_free(two);
-	big_int_free(one);
 	big_int_free(sum);
 }
 
@@ -666,6 +691,9 @@ void big_int_substract(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 	uint8_t borrow = 0;
 	size_t i;
 	uint8_t is_A_greater_than_B_abs = big_int_greater_than_abs(A, B) == 0x01;
+	#ifdef DEBUGSUBSTRACT
+	printf("A=%s, B=%s, A > B =%d\n",A->digits,B->digits, is_A_greater_than_B_abs);
+	#endif
 	for (i = 0; i < Alen || i < Blen || borrow > 0; i++)
 	{
 #ifdef DEBUGSUBSTRACT
@@ -681,28 +709,37 @@ void big_int_substract(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 		if (is_A_greater_than_B_abs)
 		{
 			// If A is greater than B and the A sign mark is negative and B is positive, that is a sum.
-			if (A->sign == '-' && B->sign == '+')
+			if (A->sign == '-' && B->sign == '+'||A->sign == '+' && B->sign == '-')
 			{
 				add(&substraction, valid_integer_A_at_i, valid_integer_B_at_i, &borrow);
+				if(A->sign == '-' && B->sign == '+')R->sign = (uint8_t)'-';
+				if(A->sign == '+' && B->sign == '-')R->sign = (uint8_t)'+';
+				
 			}
 			else
 			{
-				// If A is greater than B and the (-A + (-B) or (A - B )), that is a sum.
+				// Same sign. If A is greater than B and the (-A + (-B) or (A - B )), that is a sum.
 				substract(&needs_borrow, &substraction, valid_integer_A_at_i, valid_integer_B_at_i, &borrow);
+				R->sign = A->sign;
 			}
 			// Case #2. B is greater than A(absolute).
 		}
 		else
 		{
+			
 			if (B->sign == '-' && A->sign == '+' || B->sign == '+' && A->sign == '-')
 			{
-				// Case #2.1. If both marks signs are different, then this is a sum.
+				// Case #2.1.(B-(-A) OR ((-B)-(+A) If both marks signs are different, then this is a sum.
 				add(&substraction, valid_integer_B_at_i, valid_integer_A_at_i, &borrow);
+				if(B->sign == '-' && A->sign == '+' )	R->sign = (uint8_t)'+';
+				if( B->sign == '+' && A->sign == '-')R->sign = (uint8_t)'-';
+					
 			}
 			else
 			{
-				// Case #2.2. (B-(+A). THen that is a substraction.
+				// Case #2.2. Same sign. (B-(+A). Then that is a substraction.
 				substract(&needs_borrow, &substraction, valid_integer_B_at_i, valid_integer_A_at_i, &borrow);
+				R->sign = (uint8_t)'-';
 			}
 		}
 		uint16_t index = insert_at(R, (substraction % BASE10) + '0', MAX_DIGIT_LENGHT - i - 1);
@@ -716,15 +753,14 @@ void big_int_substract(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 	// R->digits = R->digits + (MAX_DIGIT_LENGHT - i);
 
 	BIG_INT *ptr = (BIG_INT *)(R->digits + (MAX_DIGIT_LENGHT - i));
+	//TODO: Improve copy,
 	memcpy(R->digits, ptr, i);
 	R->length = i;
-	// Implementation to decide the sign of the final BIG INT.
-	R->sign = is_A_greater_than_B_abs == 0x01 ? A->sign : B->sign;
 	clean_zero_in_front(R);
 #ifdef DEBUGSUBSTRACT
 	printf("[%s] - [%s]=[%c%s]\n", A->digits, B->digits, R->sign, R->digits);
 #endif
-	// return value;
+
 }
 
 /**
@@ -745,6 +781,9 @@ void big_int_multiply(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 		return;
 	}
 
+	//Asign the sign before execution. Prompt to corrupt the pointer.
+	R->sign = A->sign != B->sign ? (uint8_t)'-': (uint8_t)'+';
+
 	// Initialize a temporal BIG_INT to store each multiplication.
 	BIG_INT *temporal_big_int = base_ctor("0");
 	// DRY the big_int length.
@@ -755,6 +794,7 @@ void big_int_multiply(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 	// Why are they declared here: They act as tmp local intermediate pointers use to neatly copy of references.
 	BIG_INT *ptr = base_ctor();
 	// Case #2. B is greater than A by absolute value.
+	
 	if (big_int_greater_than_abs(A, B) == 0x00)
 	{
 		// Variable declare to coun the padding zeros needed to sum up the each iteration.
@@ -789,7 +829,7 @@ void big_int_multiply(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 						   (Blen > j ? B->digits[B->length - j - 1] - '0' : 0), Alen > i ? A->digits[A->length - i - 1] - '0' : 0);
 #endif
 					// Implementation to multuiply digit of A with digit of B plus any carried value from previous multiplication.
-					uint8_t multiplication = (Blen > j ? B->digits[B->length - j - 1] - '0' : 0) * primary_factor + carry;
+					uint32_t multiplication = (Blen > j ? B->digits[B->length - j - 1] - '0' : 0) * primary_factor + carry;
 					// What is it for: we get the last digit of the multiplication. Example 34, we save 4 and carry 3.
 					uint8_t mod10 = multiplication % BASE10;
 					// Implementation to stick the carry value for the next inner iteration.
@@ -827,6 +867,7 @@ void big_int_multiply(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 #ifdef DEBUG
 		printf("[%s] * [%s] = [%s]:len%d\n", A->digits, B->digits, R->digits, R->length);
 #endif
+		
 		big_int_free(tmp);
 		free(ptr);
 		big_int_free(temporal_big_int);
@@ -836,7 +877,7 @@ void big_int_multiply(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 #ifdef DEBUG
 		printf("ADig:%s|Alen:%d\tBdigit:%s|Blen:%d\n", A->digits, Alen, B->digits, Blen);
 #endif
-		// Variable declare to coun the padding zeros needed to sum up the each iteration.
+		// Variable declare to count the padding zeros needed to sum up the each iteration.
 		uint32_t padding = 0;
 
 		for (size_t i = 0; i < B->length; i++)
@@ -865,7 +906,7 @@ void big_int_multiply(BIG_INT *A, BIG_INT *B, BIG_INT *R)
 						   (Alen > j ? A->digits[A->length - j - 1] - '0' : 0), Blen > i ? B->digits[B->length - i - 1] - '0' : 0);
 #endif
 					// Implementation to multuiply digit of A with digit of B plus any carried value from previous multiplication.
-					uint8_t multiplication = (Alen > j ? A->digits[A->length - j - 1] - '0' : 0) * primary_factor + carry;
+					uint32_t multiplication = (Alen > j ? A->digits[A->length - j - 1] - '0' : 0) * primary_factor + carry;
 					// What is it for: we get the last digit of the multiplication. Example 34, we save 4 and carry 3.
 					uint8_t mod10 = multiplication % BASE10;
 					// Implementation to stick the carry value for the next inner iteration.
@@ -922,35 +963,33 @@ void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 	//![Exception # 1] Division by zero.
 	if (BIG_INT_IS_ZERO(B))
 	{
-		BIG_INT ZERO = {
-			.digits = (uint8_t[]){'0'},
-			.length = (uint32_t)1,
-			.sign = '+'};
+
 		printf("Exception: Divinding by zero.\n");
 		BIG_INT_COPY_FROM_TO((&ZERO), division_result->quotient);
 		BIG_INT_COPY_FROM_TO((&ZERO), division_result->remaining);
 		division_result->error = DIVISION_BY_ZERO;
-
-		// return division_result;
+		return;
 	}
+	//Case: B is one. Then return A
+	if(BIG_INT_IS_ONE(B)){
+		BIG_INT_COPY_FROM_TO(A, division_result->quotient)
+		BIG_INT_COPY_FROM_TO((&ZERO), division_result->remaining);
+		division_result->error = NONE;
+		return;
+	}
+
 	// Case: A and B are the same big_int. Return 1 then.
 	if (BIG_INT_ARE_SAME(A, B))
 	{
-		BIG_INT *one = base_ctor();
-		ctor_char("0", one);
-		BIG_INT_COPY_FROM_TO(one, division_result->quotient);
+		BIG_INT_COPY_FROM_TO((&ONE), division_result->quotient);
 		BIG_INT_COPY_FROM_TO(B, division_result->remaining);
-		big_int_free(one);
 		return;
 	}
 	// Case # A is not larger than B. Return zero.
 	if (big_int_greater_than_abs(A, B) == 0x00)
 	{
-		BIG_INT *zero = base_ctor();
-		ctor_char("0", zero);
-		BIG_INT_COPY_FROM_TO(zero, division_result->quotient);
+		BIG_INT_COPY_FROM_TO((&ZERO), division_result->quotient);
 		BIG_INT_COPY_FROM_TO(B, division_result->remaining);
-		big_int_free(zero);
 		return;
 	}
 
@@ -973,7 +1012,6 @@ void big_int_divide(BIG_INT *A, BIG_INT *B, division_result_t *division_result)
 	BIG_INT_COPY_FROM_TO(factor, division_result->quotient);
 	BIG_INT_COPY_FROM_TO(diff, division_result->remaining);
 	division_result->error = NONE;
-
 	big_int_free(factor);
 	big_int_free(factor_x_A);
 	big_int_free(high);
@@ -1021,10 +1059,6 @@ void big_int_power(BIG_INT *a, BIG_INT *x, BIG_INT *R)
 	BIG_INT *counter = base_ctor();
 	ctor_char("0", counter);
 
-	BIG_INT *zero = base_ctor();
-	ctor_char("0", zero);
-	BIG_INT *one = base_ctor();
-	ctor_char("1", one);
 	BIG_INT *tmp = base_ctor();
 	// tmp starts being the power exponetial so that we can substract until tmp zero and stop.
 	BIG_INT_COPY_FROM_TO(x, tmp);
@@ -1042,17 +1076,15 @@ void big_int_power(BIG_INT *a, BIG_INT *x, BIG_INT *R)
 		// Prevent counter being contaminated.
 		big_int_reset(counter);
 		// Discount one to the counter. as tmp be counter later on.
-		big_int_substract(tmp, one, counter);
+		big_int_substract(tmp, (&ONE), counter);
 		// Move counter to tmp to valid it later in the loop condition at while.
 		BIG_INT_COPY_FROM_TO(counter, tmp);
-	} while (TO_BOOL(big_int_greater_than(tmp, one)));
+	} while (TO_BOOL(big_int_greater_than(tmp, (&ONE))));
 
 #ifdef DEBUG
 	printf("%s^%s=%s\n", a->digits, x->digits, R->digits);
 #endif
 	big_int_free(counter);
-	big_int_free(zero);
-	big_int_free(one);
 	big_int_free(product);
 }
 
@@ -1088,12 +1120,9 @@ static void big_int_divide_by_2(BIG_INT *N, division_result_t *division_result)
 	else
 	{
 
-		BIG_INT *ONE = base_ctor();
 		BIG_INT *SUM = base_ctor();
 
-		ctor_char("1", ONE);
-
-		big_int_substract(N, ONE, SUM);
+		big_int_substract(N, (&ONE), SUM);
 
 		// Rest a number and return the number and the remaining of 1.
 		int carry = 0;
@@ -1116,7 +1145,6 @@ static void big_int_divide_by_2(BIG_INT *N, division_result_t *division_result)
 		}
 
 		INITIALIZE_BIG_INT_TO(division_result->remaining, '1', 1);
-		big_int_free(ONE);
 		big_int_free(SUM);
 	}
 }
@@ -1148,8 +1176,6 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 		return;
 	}
 
-	BIG_INT *ONE = base_ctor();
-	ctor_char("1", ONE);
 	// difference between max value of factor and min value of factor.
 	BIG_INT *range = base_ctor();
 
@@ -1177,12 +1203,11 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 		{
 			// factor is too big, try low - 1
 			BIG_INT *lower = base_ctor();
-			big_int_substract(low, ONE, lower);
+			big_int_substract(low, (&ONE), lower);
 			big_int_reset(factor);
 			BIG_INT_COPY_FROM_TO(lower, factor);
 			big_int_free(lower);
 		}
-		big_int_free(ONE);
 		big_int_free(range);
 		big_int_free(factor_x_N);
 		big_int_free(diff_M_minus_N);
@@ -1211,12 +1236,11 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 	if (big_int_greater_than_abs(factor_x_N, diff_M_minus_N) == 0x01 && big_int_greater_than_abs(M, factor_x_N) == 0x01)
 	{
 		{
-			big_int_free(ONE);
+
 			big_int_free(range);
 			big_int_free(factor_x_N);
 			big_int_free(diff_M_minus_N);
 		}
-		printf("iterations=%ld\n", iterations);
 		return;
 	}
 	else
@@ -1230,10 +1254,9 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 
 			big_int_reset(high);
 
-			big_int_substract(tmp, ONE, high);
+			big_int_substract(tmp, (&ONE), high);
 			{
 				big_int_free(tmp);
-				big_int_free(ONE);
 				big_int_free(range);
 				big_int_free(factor_x_N);
 				big_int_free(diff_M_minus_N);
@@ -1248,11 +1271,10 @@ static void big_int_factor_between_m_and_n(BIG_INT *M, BIG_INT *N, BIG_INT *high
 			BIG_INT_COPY_FROM_TO(factor, tmp);
 			big_int_reset(low);
 
-			big_int_sum(tmp, ONE, low);
+			big_int_sum(tmp, (&ONE), low);
 
 			{
 				big_int_free(tmp);
-				big_int_free(ONE);
 				big_int_free(range);
 				big_int_free(factor_x_N);
 				big_int_free(diff_M_minus_N);
@@ -1623,6 +1645,121 @@ void big_int_mod_pow(BIG_INT *base, BIG_INT *exp, BIG_INT *mod, BIG_INT *R)
 }
 
 /**
+ * @brief Modular Multiplicative Inverse a * t equiv 1 mod n
+ * @param a
+ * @param n
+ * @param t
+ * Based on https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
+ * function inverse(a, n)
+    t := 0;     newt := 1
+    r := n;     newr := a
+
+    while newr ≠ 0 do
+        quotient := r div newr
+        (t, newt) := (newt, t − quotient × newt) 
+        (r, newr) := (newr, r − quotient × newr)
+
+    if r > 1 then
+        return "a is not invertible"
+    if t < 0 then
+        t := t + n
+
+    return t
+ */
+int big_int_mod_inverse(BIG_INT *a, BIG_INT *n, BIG_INT *t){
+	int err = 0;
+	
+	big_int_reset(t); BIG_INT_COPY_FROM_TO((&ZERO), t);
+	BIG_INT * newT = base_ctor(); BIG_INT_COPY_FROM_TO((&ONE), newT);
+	BIG_INT * R = base_ctor(); BIG_INT_COPY_FROM_TO(n, R);
+	BIG_INT * newR = base_ctor(); BIG_INT_COPY_FROM_TO(a, newR);
+
+	division_result_t *division_result;
+	DIVISION_RESULT_FACTORY(division_result);
+
+	BIG_INT* quotient = base_ctor(); 
+
+	BIG_INT * quotient_x_newT = base_ctor();
+	BIG_INT * T_minus_quotient_x_newT = base_ctor();
+
+	BIG_INT * quotient_x_newR = base_ctor();
+	BIG_INT * R_minus_quotient_x_newR = base_ctor();
+
+	while (!BIG_INT_IS_ZERO(newR)){
+
+		DIVISION_RESULT_RESET(division_result);
+
+		big_int_divide(R, newR, division_result);
+
+		if(division_result->error != NONE){
+			printf("Error in division");
+			err = 1;
+			goto deinit;
+		}
+		big_int_reset(quotient);
+		BIG_INT_COPY_FROM_TO(division_result->quotient, quotient);
+	
+
+		big_int_reset(quotient_x_newT);
+		big_int_multiply(quotient, newT, quotient_x_newT);
+
+
+		big_int_reset(T_minus_quotient_x_newT);
+		big_int_substract(t, quotient_x_newT, T_minus_quotient_x_newT);
+
+
+
+		
+		big_int_reset(quotient_x_newR);
+		big_int_multiply(quotient, newR, quotient_x_newR);
+
+		big_int_reset(R_minus_quotient_x_newR);
+		big_int_substract(R, quotient_x_newR, R_minus_quotient_x_newR);
+	
+		
+		big_int_reset(t);
+		BIG_INT_COPY_FROM_TO(newT, t);
+		big_int_reset(newT);
+		BIG_INT_COPY_FROM_TO(T_minus_quotient_x_newT, newT);
+		big_int_reset(R);
+		BIG_INT_COPY_FROM_TO(newR, R);
+		big_int_reset(newR);
+		BIG_INT_COPY_FROM_TO(R_minus_quotient_x_newR, newR);
+	}
+	
+	if (big_int_greater_than(R, (&ONE))){
+		PRINT_BIG_INT(R);
+		printf("\n A = %s not invertible\n\n", a->digits);
+		err = 1;
+		goto deinit;
+	}
+	
+	if (big_int_greater_than((&ZERO), t)){
+		BIG_INT * copy_t = base_ctor();
+		big_int_sum(t, n, copy_t);
+		big_int_reset(t);
+		BIG_INT_COPY_FROM_TO(copy_t, t);
+		big_int_free(copy_t);
+	};
+
+	deinit:
+		big_int_free(newT);
+		big_int_free(R);
+		big_int_free(newR);
+
+		DIVISION_RESULT_DEINIT(division_result);
+		
+		big_int_free(quotient);
+
+		big_int_free(quotient_x_newR);
+		big_int_free(quotient_x_newT);
+
+		big_int_free(R_minus_quotient_x_newR);
+		big_int_free(T_minus_quotient_x_newT);
+		return err;
+}
+
+/**
  * @brief Miller-Rabin primality test.
  */
 bool big_int_miller_rabin(BIG_INT *n, int k)
@@ -1631,24 +1768,15 @@ bool big_int_miller_rabin(BIG_INT *n, int k)
 		return false;
 
 	// Small primes: Miller-Rabin requires n > 3 to have a valid witness range [2, n-2].
-	BIG_INT *_two = base_ctor();
-	BIG_INT *_three = base_ctor();
-	ctor_char("2", _two);
-	ctor_char("3", _three);
-	if (BIG_INT_ARE_SAME(n, _two) || BIG_INT_ARE_SAME(n, _three))
+	if (BIG_INT_ARE_SAME(n, (&TWO)) || BIG_INT_ARE_SAME(n, (&THREE)))
 	{
-		big_int_free(_two);
-		big_int_free(_three);
+
 		return true;
 	}
-	big_int_free(_two);
-	big_int_free(_three);
-
 	// n-1 = 2^s * d
 	BIG_INT *n_minus_1 = base_ctor();
-	BIG_INT *one = base_ctor();
-	ctor_char("1", one);
-	big_int_substract(n, one, n_minus_1);
+
+	big_int_substract(n, (&ONE), n_minus_1);
 
 	BIG_INT *d = base_ctor();
 	BIG_INT_COPY_FROM_TO(n_minus_1, d);
@@ -1661,21 +1789,17 @@ bool big_int_miller_rabin(BIG_INT *n, int k)
 		big_int_divide_by_2(d, div_res);
 		big_int_reset(d);
 		BIG_INT_COPY_FROM_TO(div_res->quotient, d);
-		big_int_free(div_res->quotient);
-		big_int_free(div_res->remaining);
-		free(div_res);
+		DIVISION_RESULT_DEINIT(div_res);
 		s++;
 	}
 
-	BIG_INT *two = base_ctor();
-	ctor_char("2", two);
 	BIG_INT *n_minus_2 = base_ctor();
-	big_int_substract(n_minus_1, one, n_minus_2);
+	big_int_substract(n_minus_1, (&ONE), n_minus_2);
 
 	for (int i = 0; i < k; i++)
 	{
 		BIG_INT *a = base_ctor();
-		big_int_random_in_range(two, n_minus_2, a);
+		big_int_random_in_range((&TWO), n_minus_2, a);
 
 		BIG_INT *x = base_ctor();
 		big_int_mod_pow(a, d, n, x);
@@ -1708,20 +1832,15 @@ bool big_int_miller_rabin(BIG_INT *n, int k)
 			big_int_free(a);
 			big_int_free(x);
 			big_int_free(n_minus_1);
-			big_int_free(one);
 			big_int_free(d);
-			big_int_free(two);
 			big_int_free(n_minus_2);
 			return false;
 		}
 		big_int_free(a);
 		big_int_free(x);
 	}
-
 	big_int_free(n_minus_1);
-	big_int_free(one);
 	big_int_free(d);
-	big_int_free(two);
 	big_int_free(n_minus_2);
 	return true;
 }
@@ -1734,28 +1853,19 @@ bool big_int_is_prime(BIG_INT *n, int k)
 	if (BIG_INT_IS_ZERO(n) || BIG_INT_IS_ONE(n))
 		return false;
 
-	BIG_INT *two = base_ctor();
-	ctor_char("2", two);
-	BIG_INT *three = base_ctor();
-	ctor_char("3", three);
-
-	if (BIG_INT_ARE_SAME(n, two) || BIG_INT_ARE_SAME(n, three))
+	if (BIG_INT_ARE_SAME(n, (&TWO)) || BIG_INT_ARE_SAME(n, (&THREE)))
 	{
-		big_int_free(two);
-		big_int_free(three);
+
 		return true;
 	}
 
 	if (is_even(n->digits[n->length - 1]))
 	{
-		big_int_free(two);
-		big_int_free(three);
+
 		return false;
 	}
 	printf("Testing primality for:%s\n", n->digits);
 	bool result = big_int_miller_rabin(n, k);
-	big_int_free(two);
-	big_int_free(three);
 	return result;
 }
 
@@ -1878,6 +1988,24 @@ void big_int_random_in_range(BIG_INT *start, BIG_INT *end, BIG_INT *R)
 	free(array_bits_of_end_number);
 }
 
+/***
+ * @param n bits needed
+ * @param BN the result BN
+ *
+ */
+void big_int_random_prime(int n, BIG_INT *BN)
+{
+	BIG_INT *rnd_prime = base_ctor();
+	big_int_random(n, rnd_prime);
+	while (!big_int_is_prime(rnd_prime, 2))
+	{
+		big_int_reset(rnd_prime);
+		big_int_random(n, rnd_prime);
+	};
+	BIG_INT_COPY_FROM_TO(rnd_prime, BN);
+	big_int_free(rnd_prime);
+}
+
 /**
  * @since 01/12/2024
  * @brief get the bits of the BN
@@ -1911,12 +2039,11 @@ uint8_t *big_int_to_bits(BIG_INT *BN)
 		big_int_reset(numerator);
 		BIG_INT_COPY_FROM_TO(division_result->quotient, numerator);
 
-		if (block_size * number_of_blocks < i)
+		if (i >= block_size * number_of_blocks)
 		{
 			number_of_blocks++;
 			stream_of_bits = realloc(stream_of_bits, sizeof(uint8_t) * number_of_blocks * block_size);
-			printf("%s\n", stream_of_bits);
-			memset(stream_of_bits + sizeof(uint8_t) * i, '\0', block_size);
+			memset(stream_of_bits + sizeof(uint8_t) * (block_size * (number_of_blocks - 1)), '\0', block_size);
 		}
 		memcpy(stream_of_bits + sizeof(uint8_t) * i, division_result->remaining->digits, sizeof(uint8_t) * 1);
 
@@ -1927,9 +2054,7 @@ uint8_t *big_int_to_bits(BIG_INT *BN)
 		printf("\n\n");
 
 #endif
-		big_int_free(division_result->quotient);
-		big_int_free(division_result->remaining);
-		free(division_result);
+		DIVISION_RESULT_DEINIT(division_result)
 		i++;
 	}
 	// Reverse the array of bits.
